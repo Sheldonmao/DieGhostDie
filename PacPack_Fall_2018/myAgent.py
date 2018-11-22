@@ -130,6 +130,7 @@ class MyAgent(CaptureAgent):
         value = features * self.weight
         return value
 
+"""
 class GameTreeAgent(MyAgent):
 
     """
@@ -226,7 +227,7 @@ class GameTreeAgent(MyAgent):
             v = self.terminal(gameState, index + 1, alpha, beta)
             self.decision = s
             return v
-
+"""
 
 
 def actionsWithoutStop(legalActions):
