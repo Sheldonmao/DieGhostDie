@@ -8,7 +8,7 @@
 
 from captureAgents import CaptureAgent
 from staffBot import SimpleStaffBot
-from myAgent import MyAgent, GameTreeAgent
+from myAgent import MyAgent
 import distanceCalculator
 import random, time, util, sys
 from game import Directions
