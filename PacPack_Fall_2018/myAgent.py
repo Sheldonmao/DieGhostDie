@@ -313,7 +313,7 @@ class ReinforcementAgent(BaseAgent):
 
     def saveWeights(self, gameState):
         if len(gameState.getFood().asList()) or gameState.data.time >= 1190:
-            f = open("F:\cs188\\reinforcement\\reinforcement\\train.txt", "w")
+            f = open("train.txt", "w")
             for key in self.weight.keys():
                 value = str(self.weight[key])
                 toPrint = key + ':' + value
@@ -321,7 +321,7 @@ class ReinforcementAgent(BaseAgent):
 
     def readWeights(self):
         self.weight = Counter()
-        with open("F:\cs188\\reinforcement\\reinforcement\\train.txt", "r") as f:
+        with open("train.txt", "r") as f:
             for line in f.readlines():
                 content = line.split(':')
                 self.weight[content[0]] = float(content[1])
