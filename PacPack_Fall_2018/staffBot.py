@@ -15,7 +15,8 @@
 
 
 from captureAgents import CaptureAgent
-from game import Directions
+from game import Directions, Actions
+from util import Counter
 
 #########
 # Agent #
@@ -151,3 +152,106 @@ class SimpleStaffBot(CaptureAgent):
             plan.append(action)
             state = state.generateSuccessor(self.index, action)
         return plan
+
+class TutorBot(SimpleStaffBot):
+    def registerInitialState(self, gameState):
+        SimpleStaffBot.registerInitialState(self, gameState)
+        self.lastNeighbor = []
+        self.lastFeature = Counter()
+        self.start = gameState.getAgentPosition(self.index)
+        self.walls = gameState.getWalls()
+        self.bornHardLevel = 0
+        for i in range(1, 4):
+            col = 2 * i
+            walls = 0
+            for j in range(1, self.walls.height - 1):
+                if self.walls[col][j] == True:
+                    walls += 1
+            if walls < self.walls.height - 3:
+                break
+            self.bornHardLevel += 1
+        self.thisAction = None
+
+    def getReward(self, gameState):
+        eatenPenalty = 0
+        if gameState.getAgentPosition(self.index) == self.start:
+            eatenPenalty = -10 * self.bornHardLevel
+        eatFoodReward = 0
+        pacman = gameState.getAgentPosition(self.index)
+
+        if len(self.lastNeighbor) != 0:
+            x, y = pacman
+            if (x, y) in self.lastNeighbor:
+                eatFoodReward = 10
+
+        foodDecreaseReward = 0
+        if len(self.observationHistory) != 0:
+            lastFoodNum = len(self.observationHistory[-1].getFood().asList())
+            presentFoodNum = len(gameState.getFood().asList())
+            foodDecreaseReward = 10 * (lastFoodNum - presentFoodNum)
+
+        # 储存我的四邻域食物情况
+        self.lastNeighbor = []
+        food = gameState.getFood()
+        legalNeighbors = Actions.getLegalNeighbors(pacman, self.walls)
+        for i in range(len(legalNeighbors)):
+            x, y = legalNeighbors[i]
+            if food[x][y]:
+                self.lastNeighbor.append((x, y))
+
+        return eatenPenalty + eatFoodReward + foodDecreaseReward
+
+    def getFeatures(self, gameState, action):
+        feats = Counter()
+        feats['bias'] = 1
+        if action == Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]:
+            feats['reverse'] = 1
+        else: feats['reverse'] = 0
+
+        foods = gameState.getFood().asList()
+        ghosts = [gameState.getAgentPosition(ghost) for ghost in gameState.getGhostTeamIndices()]
+        friends = [gameState.getAgentPosition(pacman) for pacman in gameState.getPacmanTeamIndices() if pacman != self.index]
+        pacman = gameState.getAgentPosition(self.index)
+        closestFood = min(self.distancer.getDistance(pacman, food) for food in foods) + 2.0 \
+            if len(foods) > 0 else 1.0
+        closestGhost = min(self.distancer.getDistance(pacman, ghost) for ghost in ghosts) + 1.0 \
+            if len(ghosts) > 0 else 1.0
+        closestFriend = min(self.distancer.getDistance(pacman, friend) for friend in friends) + 1.0 \
+            if len(friends) > 0 else 1.0
+        closestFoodReward = 1.0 / closestFood
+        closestGhostPenalty = 1.0 / (closestGhost ** 2) if closestGhost < 20 else 0
+        closestFriendPenalty = 1.0 / (closestFriend ** 2) if closestFriend < 5 else 0
+        numFood = len(foods)
+        feats['numFood'] = numFood/60
+        feats['closestFood'] = closestFoodReward
+        feats['closestFriend'] = closestFriendPenalty
+        feats['closestGhost'] = closestGhostPenalty
+
+        pacActions = gameState.getLegalActions(gameState.getGhostTeamIndices()[0])
+        pacActions = actionsWithoutStop(pacActions)
+        feats['pacInTunnel'] = 0
+        if len(pacActions) == 2:
+            feats['pacInTunnel'] = 1
+
+    def chooseAction(self, gameState):
+        self.thisAction = SimpleStaffBot.chooseAction(self, gameState)
+        return self.thisAction
+
+    def generatePlan(self, state, plan_length):
+        if self.thisAction == None:
+            return None
+        features = self.getFeatures(state, self.thisAction)
+        rewards = self.getReward(state)
+        if len(self.lastFeature.keys()) == 0:
+            return [features, rewards, features]
+        else: return [features, rewards, self.lastFeature]
+
+
+def actionsWithoutStop(legalActions):
+    """
+    Filters actions by removing the STOP action
+    """
+    legalActions = list(legalActions)
+    if Directions.STOP in legalActions:
+        legalActions.remove(Directions.STOP)
+    return legalActions
