@@ -135,6 +135,7 @@ class ReinforcementAgent(BaseAgent):
         self.alpha = 0.001
         self.gamma = 0.8
         self.epsilon = 0.05
+        self.reverse_prob=0.5
 
         self.bornHardLevel = 0
         for i in range(1, 4):
@@ -252,6 +253,9 @@ class ReinforcementAgent(BaseAgent):
         """
         # Pick Action
         legalActions = state.getLegalActions(self.index)
+        if util.flipCoin(self.reverse_prob):
+            legalActions=actionsWithoutReverse(legalActions,state,self.index)
+                        
         action = None
         "*** YOUR CODE HERE ***"
         if len(legalActions)!=0:
