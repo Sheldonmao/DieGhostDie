@@ -120,20 +120,6 @@ class MyAgent(BaseAgent):
         return "MyAgent"
 
 class ReinforcementAgent(BaseAgent):
-    def __init__(self, epsilon=0.05,gamma=0.8,alpha=0.2, **args):
-        """
-        These default parameters can be changed from the pacman.py command line.
-        For example, to change the exploration rate, try:
-            python pacman.py -p PacmanQLearningAgent -a epsilon=0.1
-
-        alpha    - learning rate
-        epsilon  - exploration rate
-        gamma    - discount factor
-        numTraining - number of training episodes, i.e. no learning after these many episodes
-        """
-        self.epsilon = float(epsilon)
-        self.alpha = float(alpha)
-        self.discount = float(gamma)
 
     def registerInitialState(self, gameState):
         CaptureAgent.registerInitialState(gameState)
@@ -149,7 +135,20 @@ class ReinforcementAgent(BaseAgent):
         self.weight['bias'] = 1
 
         self.lastFeature = None
+        self.alpha = 0.1
+        self.gamma = 0.8
+        self.epsilon = 0.2
 
+        self.bornHardLevel = 0
+        for i in range(1, 4):
+            col = 2 * i
+            walls = 0
+            for j in range(1, self.walls.height - 1):
+                if self.walls[col][j] == True:
+                    walls += 1
+            if walls < self.walls.height - 3:
+                break
+            self.bornHardLevel += 1
 
     def getFeatures(self, gameState, action):
         feats = Counter()

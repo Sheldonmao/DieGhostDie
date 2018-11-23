@@ -53,12 +53,18 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="py" value="1954" />
+          <entry key="py" value="2014" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Python" value="1954" />
+          <entry key="Python" value="2014" />
+        </counts>
+      </usages-collector>
+      <usages-collector id="statistics.lifecycle.project">
+        <counts>
+          <entry key="project.open.time.0" value="1" />
+          <entry key="project.opened" value="1" />
         </counts>
       </usages-collector>
     </session>
@@ -68,7 +74,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/capture.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="3846">
+            <state relative-caret-position="14630">
               <caret line="783" column="4" selection-start-line="783" selection-start-column="4" selection-end-line="783" selection-end-column="4" />
             </state>
           </provider>
@@ -77,7 +83,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/game.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1397">
+            <state relative-caret-position="6384">
               <caret line="341" column="8" selection-start-line="341" selection-start-column="8" selection-end-line="341" selection-end-column="8" />
             </state>
           </provider>
@@ -86,8 +92,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/captureAgents.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="103">
-              <caret line="51" column="41" lean-forward="true" selection-start-line="51" selection-start-column="41" selection-end-line="51" selection-end-column="41" />
+            <state relative-caret-position="969">
+              <caret line="51" column="41" selection-start-line="51" selection-start-column="41" selection-end-line="51" selection-end-column="41" />
               <folding>
                 <element signature="e#484#506#0" expanded="true" />
               </folding>
@@ -98,7 +104,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/../../../reinforcement/reinforcement/qlearningAgents.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="233">
+            <state relative-caret-position="-1648">
               <caret line="23" selection-start-line="20" selection-start-column="21" selection-end-line="20" selection-end-column="39" />
             </state>
           </provider>
@@ -107,7 +113,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/team.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="461">
+            <state relative-caret-position="703">
               <caret line="37" column="59" selection-start-line="37" selection-start-column="48" selection-end-line="37" selection-end-column="59" />
               <folding>
                 <element signature="e#413#451#0" expanded="true" />
@@ -119,8 +125,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/staffBot.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="613">
-              <caret line="61" column="35" lean-forward="true" selection-start-line="61" selection-start-column="35" selection-end-line="61" selection-end-column="35" />
+            <state relative-caret-position="1159">
+              <caret line="61" column="35" selection-start-line="61" selection-start-column="35" selection-end-line="61" selection-end-column="35" />
               <folding>
                 <element signature="e#767#805#0" expanded="true" />
               </folding>
@@ -131,15 +137,10 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/myAgent.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-109">
-              <caret line="172" column="12" lean-forward="true" selection-start-line="172" selection-start-column="12" selection-end-line="172" selection-end-column="12" />
+            <state relative-caret-position="361">
+              <caret line="139" column="26" lean-forward="true" selection-start-line="139" selection-start-column="26" selection-end-line="139" selection-end-column="26" />
               <folding>
                 <element signature="e#752#790#0" expanded="true" />
-                <marker date="1542934401016" expanded="true" signature="1016:1022" ph="..." />
-                <marker date="1542934401016" expanded="true" signature="4402:4407" ph="..." />
-                <marker date="1542934401016" expanded="true" signature="4494:6788" ph="..." />
-                <marker date="1542934401016" expanded="true" signature="4536:5054" ph="..." />
-                <marker date="1542934401016" expanded="true" signature="7455:7456" ph="..." />
               </folding>
             </state>
           </provider>
@@ -270,7 +271,7 @@
     <frame x="-7" y="-7" width="1550" height="838" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.2533512" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.25670242" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -354,13 +355,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/../../../reinforcement/reinforcement/qlearningAgents.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="233">
-          <caret line="23" selection-start-line="20" selection-start-column="21" selection-end-line="20" selection-end-column="39" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/../../../reinforcement/reinforcement/learningAgents.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-4422">
@@ -368,22 +362,36 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/staffBot.py">
+    <entry file="file://$PROJECT_DIR$/team_self.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/capture.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="613">
-          <caret line="61" column="35" lean-forward="true" selection-start-line="61" selection-start-column="35" selection-end-line="61" selection-end-column="35" />
+        <state relative-caret-position="14630">
+          <caret line="783" column="4" selection-start-line="783" selection-start-column="4" selection-end-line="783" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/game.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="6384">
+          <caret line="341" column="8" selection-start-line="341" selection-start-column="8" selection-end-line="341" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/captureAgents.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="969">
+          <caret line="51" column="41" selection-start-line="51" selection-start-column="41" selection-end-line="51" selection-end-column="41" />
           <folding>
-            <element signature="e#767#805#0" expanded="true" />
+            <element signature="e#484#506#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/team_self.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
     <entry file="file://$PROJECT_DIR$/team.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="461">
+        <state relative-caret-position="703">
           <caret line="37" column="59" selection-start-line="37" selection-start-column="48" selection-end-line="37" selection-end-column="59" />
           <folding>
             <element signature="e#413#451#0" expanded="true" />
@@ -391,41 +399,29 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/captureAgents.py">
+    <entry file="file://$PROJECT_DIR$/staffBot.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="103">
-          <caret line="51" column="41" lean-forward="true" selection-start-line="51" selection-start-column="41" selection-end-line="51" selection-end-column="41" />
+        <state relative-caret-position="1159">
+          <caret line="61" column="35" selection-start-line="61" selection-start-column="35" selection-end-line="61" selection-end-column="35" />
           <folding>
-            <element signature="e#484#506#0" expanded="true" />
+            <element signature="e#767#805#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/game.py">
+    <entry file="file://$PROJECT_DIR$/../../../reinforcement/reinforcement/qlearningAgents.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1397">
-          <caret line="341" column="8" selection-start-line="341" selection-start-column="8" selection-end-line="341" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/capture.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3846">
-          <caret line="783" column="4" selection-start-line="783" selection-start-column="4" selection-end-line="783" selection-end-column="4" />
+        <state relative-caret-position="-1648">
+          <caret line="23" selection-start-line="20" selection-start-column="21" selection-end-line="20" selection-end-column="39" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/myAgent.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-109">
-          <caret line="172" column="12" lean-forward="true" selection-start-line="172" selection-start-column="12" selection-end-line="172" selection-end-column="12" />
+        <state relative-caret-position="361">
+          <caret line="139" column="26" lean-forward="true" selection-start-line="139" selection-start-column="26" selection-end-line="139" selection-end-column="26" />
           <folding>
             <element signature="e#752#790#0" expanded="true" />
-            <marker date="1542934401016" expanded="true" signature="1016:1022" ph="..." />
-            <marker date="1542934401016" expanded="true" signature="4402:4407" ph="..." />
-            <marker date="1542934401016" expanded="true" signature="4494:6788" ph="..." />
-            <marker date="1542934401016" expanded="true" signature="4536:5054" ph="..." />
-            <marker date="1542934401016" expanded="true" signature="7455:7456" ph="..." />
           </folding>
         </state>
       </provider>
