@@ -120,6 +120,21 @@ class MyAgent(BaseAgent):
         return "MyAgent"
 
 class ReinforcementAgent(BaseAgent):
+    def __init__(self, epsilon=0.05,gamma=0.8,alpha=0.2, **args):
+        """
+        These default parameters can be changed from the pacman.py command line.
+        For example, to change the exploration rate, try:
+            python pacman.py -p PacmanQLearningAgent -a epsilon=0.1
+
+        alpha    - learning rate
+        epsilon  - exploration rate
+        gamma    - discount factor
+        numTraining - number of training episodes, i.e. no learning after these many episodes
+        """
+        self.epsilon = float(epsilon)
+        self.alpha = float(alpha)
+        self.discount = float(gamma)
+
     def registerInitialState(self, gameState):
         CaptureAgent.registerInitialState(gameState)
         self.start = gameState.getAgentPosition(self.index)
@@ -133,7 +148,6 @@ class ReinforcementAgent(BaseAgent):
         self.weight['numFood'] = 1
         self.weight['bias'] = 1
 
-        self.lastQ = None
         self.lastFeature = None
 
 
@@ -169,8 +183,95 @@ class ReinforcementAgent(BaseAgent):
             futureMoves += 1 + len(s.getLegalAction(self.index))
         feats['5*5space'] = futureMoves
 
+    def getQValue(self, state, action):
+        """
+          Should return Q(state,action) = w * featureVector
+          where * is the dotProduct operator
+        """
+        "*** YOUR CODE HERE ***"
+        #print(self.weights)
+        #print(self.featExtractor.getFeatures(state,action))
+        return self.weights*self.getFeatures(state,action)
+        util.raiseNotDefined()
+
+    def computeValueFromQValues(self, state):
+        """
+          Returns max_action Q(state,action)
+          where the max is over legal actions.  Note that if
+          there are no legal actions, which is the case at the
+          terminal state, you should return a value of 0.0.
+        """
+        "*** YOUR CODE HERE ***"
+        actions=state.getLegalActions(self.index)
+        best_Qvalue=0
+        if len(actions)!=0:
+            Qvalues = [self.getQValue(state,action) for action in actions]
+            best_Qvalue=max(Qvalues)
+        return best_Qvalue
+
+    def computeActionFromQValues(self, state):
+        """
+          Compute the best action to take in a state.  Note that if there
+          are no legal actions, which is the case at the terminal state,
+          you should return None.
+        """
+        "*** YOUR CODE HERE ***"
+        actions=state.getLegalActions(self.index)
+        best_action=None
+        if len(actions)!=0:
+            Qvalues = [self.getQValue(state,action) for action in self.getLegalActions(state)]
+            best_Qvalue=max(Qvalues)
+            best_indices=[index for index in range(len(Qvalues)) if Qvalues[index]==best_Qvalue]
+            chosen_index=random.choice(best_indices)
+            best_action=actions[chosen_index]
+        return best_action
+
+    def chooseAction(self, state):
+        """
+          Compute the action to take in the current state.  With
+          probability self.epsilon, we should take a random action and
+          take the best policy action otherwise.  Note that if there are
+          no legal actions, which is the case at the terminal state, you
+          should choose None as the action.
+
+          HINT: You might want to use util.flipCoin(prob)
+          HINT: To pick randomly from a list, use random.choice(list)
+        """
+        # Pick Action
+        legalActions = state.getLegalActions(self.index)
+        action = None
+        "*** YOUR CODE HERE ***"
+        if len(legalActions)!=0:
+            if util.flipCoin(self.epsilon):
+                action=random.choice(legalActions)
+            else:
+                action=self.computeActionFromQValues(state)
+
+        return action 
+
+    def update(self, state, reward):
+        """
+           Should update your weights based on transition
+        """
+        "*** YOUR CODE HERE ***"
+        difference=reward+self.discount*self.computeValueFromQValues(state)-self.weights*self.lastFeature
+        for feature in features:
+            self.weights[feature]+=self.alpha*difference*self.lastFeature[feature]
+
     def getReward(self, gameState):
         pass
+
+    def getPolicy(self, state):
+        return self.computeActionFromQValues(state)
+
+    def getValue(self, state):
+        return self.computeValueFromQValues(state)
+
+    def getWeights(self):
+        return self.weights
+
+
+
 
 
 def actionsWithoutStop(legalActions):
