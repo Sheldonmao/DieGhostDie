@@ -10,7 +10,7 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/PacPack_Fall_2018$testIO.coverage" NAME="testIO Coverage Results" MODIFIED="1543002146611" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/PacPack_Fall_2018$capture.coverage" NAME="capture Coverage Results" MODIFIED="1543003500396" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/PacPack_Fall_2018$capture.coverage" NAME="capture Coverage Results" MODIFIED="1543005740868" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="FUSProjectUsageTrigger">
     <session id="-919433091">
@@ -54,12 +54,12 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="py" value="4074" />
+          <entry key="py" value="4490" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Python" value="4074" />
+          <entry key="Python" value="4490" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.lifecycle.project">
@@ -87,7 +87,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/game.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1273">
+            <state relative-caret-position="1672">
               <caret line="343" column="19" selection-start-line="343" selection-start-column="19" selection-end-line="343" selection-end-column="19" />
             </state>
           </provider>
@@ -96,8 +96,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/captureAgents.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1577">
-              <caret line="83" column="23" selection-start-line="83" selection-start-column="23" selection-end-line="83" selection-end-column="23" />
+            <state relative-caret-position="-1268">
+              <caret line="77" column="27" selection-start-line="77" selection-start-column="9" selection-end-line="77" selection-end-column="27" />
               <folding>
                 <element signature="e#484#506#0" expanded="true" />
               </folding>
@@ -141,8 +141,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/myAgent.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="271">
-              <caret line="323" column="41" lean-forward="true" selection-start-line="323" selection-start-column="41" selection-end-line="323" selection-end-column="41" />
+            <state relative-caret-position="290">
+              <caret line="269" column="21" lean-forward="true" selection-start-line="269" selection-start-column="21" selection-end-line="269" selection-end-column="21" />
               <folding>
                 <element signature="e#752#790#0" expanded="true" />
               </folding>
@@ -170,6 +170,7 @@
       <find>update</find>
       <find>getLegalActions</find>
       <find>PacmanQAgent</find>
+      <find>actionsWithoutStop</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -399,16 +400,6 @@
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
     <entry file="file://$PROJECT_DIR$/testIO.py" />
-    <entry file="file://$PROJECT_DIR$/captureAgents.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1577">
-          <caret line="83" column="23" selection-start-line="83" selection-start-column="23" selection-end-line="83" selection-end-column="23" />
-          <folding>
-            <element signature="e#484#506#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/../../../reinforcement/reinforcement/qlearningAgents.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="361">
@@ -448,15 +439,25 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/game.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1273">
+        <state relative-caret-position="1672">
           <caret line="343" column="19" selection-start-line="343" selection-start-column="19" selection-end-line="343" selection-end-column="19" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/captureAgents.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1268">
+          <caret line="77" column="27" selection-start-line="77" selection-start-column="9" selection-end-line="77" selection-end-column="27" />
+          <folding>
+            <element signature="e#484#506#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/myAgent.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="271">
-          <caret line="323" column="41" lean-forward="true" selection-start-line="323" selection-start-column="41" selection-end-line="323" selection-end-column="41" />
+        <state relative-caret-position="290">
+          <caret line="269" column="21" lean-forward="true" selection-start-line="269" selection-start-column="21" selection-end-line="269" selection-end-column="21" />
           <folding>
             <element signature="e#752#790#0" expanded="true" />
           </folding>

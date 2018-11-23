@@ -200,7 +200,6 @@ class ReinforcementAgent(BaseAgent):
         #print(self.weights)
         #print(self.featExtractor.getFeatures(state,action))
         return self.weight*self.getFeatures(state,action)
-        util.raiseNotDefined()
 
     def computeValueFromQValues(self, state):
         """
@@ -250,6 +249,12 @@ class ReinforcementAgent(BaseAgent):
           HINT: You might want to use util.flipCoin(prob)
           HINT: To pick randomly from a list, use random.choice(list)
         """
+        pacX, pacY = state.getAgentPosition(self.index)
+        if pacX <= 2 * self.bornHardLevel - 1:
+            if ((pacX + 1) / 2) % 2 == 1:
+                action = Directions.NORTH
+            else:
+                action = Directions.SOUTH
         # Pick Action
         legalActions = state.getLegalActions(self.index)
         action = None
@@ -291,6 +296,12 @@ class ReinforcementAgent(BaseAgent):
             if (x, y) in self.lastNeighbor:
                 eatFoodReward = 10
 
+        foodDecreaseReward = 0
+        if len(self.observationHistory) != 0:
+            lastFoodNum = len(self.observationHistory[-1].getFood().asList())
+            presentFoodNum = len(gameState.getFood().asList())
+            foodDecreaseReward = 10 * (lastFoodNum - presentFoodNum)
+
         # 储存我的四邻域食物情况
         self.lastNeighbor = []
         food = gameState.getFood()
@@ -300,7 +311,7 @@ class ReinforcementAgent(BaseAgent):
             if food[x][y] == True:
                 self.lastNeighbor.append((x, y))
 
-        return eatenPenalty + survivePenalty + eatFoodReward
+        return eatenPenalty + survivePenalty + eatFoodReward + foodDecreaseReward
 
     def getPolicy(self, state):
         return self.computeActionFromQValues(state)
