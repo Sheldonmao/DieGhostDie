@@ -169,7 +169,7 @@ class ReinforcementAgent(BaseAgent):
         closestGhostPenalty = 1.0 / (closestGhost ** 2) if closestGhost < 20 else 0
         closestFriendPenalty = 1.0 / (closestFriend ** 2) if closestFriend < 5 else 0
         numFood = len(foods)
-        feats['numFood'] = numFood
+        feats['numFood'] = numFood/60
         feats['closestFood'] = closestFoodReward
         feats['closestFriend'] = closestFriendPenalty
         feats['closestGhost'] = closestGhostPenalty
@@ -184,7 +184,7 @@ class ReinforcementAgent(BaseAgent):
         for a in gameState.getLegalActions(self.index):
             s = gameState.generateSuccessor(self.index, a)
             futureMoves += 1 + len(s.getLegalActions(self.index))
-        feats['5*5space'] = futureMoves / 6
+        feats['5*5space'] = futureMoves / 30
         return feats
 
     def getQValue(self, state, action):
@@ -250,7 +250,7 @@ class ReinforcementAgent(BaseAgent):
         legalActions = state.getLegalActions(self.index)
         if util.flipCoin(self.reverse_prob):
             legalActions=actionsWithoutReverse(legalActions,state,self.index)
-                        
+
         action = None
         "*** YOUR CODE HERE ***"
         if pacX <= 2 * self.bornHardLevel - 1:
