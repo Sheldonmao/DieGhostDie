@@ -134,7 +134,7 @@ class ReinforcementAgent(BaseAgent):
 
         self.alpha = 0.001
         self.gamma = 0.8
-        self.epsilon = 0.05
+        self.epsilon = 0.2
         self.reverse_prob=0.5
 
         self.bornHardLevel = 0
@@ -174,16 +174,11 @@ class ReinforcementAgent(BaseAgent):
         feats['closestFriend'] = closestFriendPenalty
         feats['closestGhost'] = closestGhostPenalty
 
-        ghostActions = gameState.getLegalActions(gameState.getGhostTeamIndices()[0])
-        ghostActions = actionsWithoutStop(ghostActions)
-        feats['ghostInTunnel'] = 0
-        if len(ghostActions) == 2:
-            action1, action2 = ghostActions
-            if (action1 == Directions.NORTH and action2 == Directions.SOUTH)\
-                or (action2 == Directions.NORTH and action1 == Directions.SOUTH)\
-                or (action1 == Directions.EAST and action2 == Directions.WEST)\
-                or (action2 == Directions.EAST and action1 == Directions.WEST):
-                feats['ghostInTunnel'] = 1
+        pacActions = gameState.getLegalActions(gameState.getGhostTeamIndices()[0])
+        pacActions = actionsWithoutStop(pacActions)
+        feats['pacInTunnel'] = 0
+        if len(pacActions) == 2:
+            feats['pacInTunnel'] = 1
 
         futureMoves = 0
         for a in gameState.getLegalActions(self.index):
@@ -201,7 +196,6 @@ class ReinforcementAgent(BaseAgent):
         #print(self.weights)
         #print(self.featExtractor.getFeatures(state,action))
         return self.weight*self.getFeatures(state,action)
-        util.raiseNotDefined()
 
     def computeValueFromQValues(self, state):
         """
@@ -251,6 +245,7 @@ class ReinforcementAgent(BaseAgent):
           HINT: You might want to use util.flipCoin(prob)
           HINT: To pick randomly from a list, use random.choice(list)
         """
+        pacX, pacY = state.getAgentPosition(self.index)
         # Pick Action
         legalActions = state.getLegalActions(self.index)
         if util.flipCoin(self.reverse_prob):
@@ -258,7 +253,12 @@ class ReinforcementAgent(BaseAgent):
                         
         action = None
         "*** YOUR CODE HERE ***"
-        if len(legalActions)!=0:
+        if pacX <= 2 * self.bornHardLevel - 1:
+            if ((pacX + 1) / 2) % 2 == 1:
+                action = Directions.NORTH if Directions.NORTH in legalActions else None
+            else:
+                action = Directions.SOUTH if Directions.SOUTH in legalActions else None
+        if len(legalActions)!=0 and action == None:
             if util.flipCoin(self.epsilon):
                 action=random.choice(legalActions)
             else:
@@ -295,6 +295,12 @@ class ReinforcementAgent(BaseAgent):
             if (x, y) in self.lastNeighbor:
                 eatFoodReward = 10
 
+        foodDecreaseReward = 0
+        if len(self.observationHistory) != 0:
+            lastFoodNum = len(self.observationHistory[-1].getFood().asList())
+            presentFoodNum = len(gameState.getFood().asList())
+            foodDecreaseReward = 10 * (lastFoodNum - presentFoodNum)
+
         # 储存我的四邻域食物情况
         self.lastNeighbor = []
         food = gameState.getFood()
@@ -304,7 +310,7 @@ class ReinforcementAgent(BaseAgent):
             if food[x][y] == True:
                 self.lastNeighbor.append((x, y))
 
-        return eatenPenalty + survivePenalty + eatFoodReward
+        return eatenPenalty + survivePenalty + eatFoodReward + foodDecreaseReward
 
     def getPolicy(self, state):
         return self.computeActionFromQValues(state)
