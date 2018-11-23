@@ -8,7 +8,7 @@ import random
 
 if __name__ == '__main__':
     turns = 0
-    while turns < 500:
+    while turns < 6000:
         turns += 1
         if turns < 100:
             epsilon = 0.2 - turns * 0.0015
