@@ -179,7 +179,7 @@ class ReinforcementAgent(BaseAgent):
         if len(ghostActions) == 2:
             action1, action2 = ghostActions
             if (action1 == Directions.NORTH and action2 == Directions.SOUTH)\
-                or (action2 == Directions.NORTH and action1 == Directions.SORTH)\
+                or (action2 == Directions.NORTH and action1 == Directions.SOUTH)\
                 or (action1 == Directions.EAST and action2 == Directions.WEST)\
                 or (action2 == Directions.EAST and action1 == Directions.WEST):
                 feats['ghostInTunnel'] = 1
