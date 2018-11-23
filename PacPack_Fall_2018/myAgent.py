@@ -56,6 +56,8 @@ class BaseAgent(CaptureAgent):
         """
         Picks among actions randomly.
         """
+        print(gameState.data.time)
+        print(len(gameState.getFood().asList()))
         teammateActions = self.receivedBroadcast
         # Process your teammate's broadcast!
         # Use it to pick a better action for yourself
@@ -125,17 +127,11 @@ class ReinforcementAgent(BaseAgent):
         CaptureAgent.registerInitialState(gameState)
         self.start = gameState.getAgentPosition(self.index)
         self.walls = gameState.getWalls()
-        self.weight = Counter()
-        self.weight['5*5space'] = 0.5
-        self.weight['reverse'] = -1
-        self.weight['closestFriend'] = -1
-        self.weight['closestFood'] = 1
-        self.weight['closestGhost'] = -0.5
-        self.weight['numFood'] = 1
-        self.weight['bias'] = 1
+        self.readWeights()
 
-        self.lastFeature = None
-        self.alpha = 0.1
+        self.lastFeature = Counter()
+        self.lastNeighbor = []
+        self.alpha = 0.001
         self.gamma = 0.8
         self.epsilon = 0.2
 
@@ -172,15 +168,28 @@ class ReinforcementAgent(BaseAgent):
         closestFriendPenalty = 1.0 / (closestFriend ** 2) if closestFriend < 5 else 0
         numFood = len(foods)
         feats['numFood'] = numFood
-        feats['closestFood']= closestFoodReward
+        feats['closestFood'] = closestFoodReward
         feats['closestFriend'] = closestFriendPenalty
         feats['closestGhost'] = closestGhostPenalty
+
+        ghostActions = gameState.getLegalActions(gameState.getGhostTeamIndices()[0])
+        ghostActions = actionsWithoutStop(ghostActions)
+        feats['ghostInTunnel'] = 0
+        if len(ghostActions) == 2:
+            action1, action2 = ghostActions
+            if (action1 == Directions.NORTH and action2 == Directions.SOUTH)\
+                or (action2 == Directions.NORTH and action1 == Directions.SORTH)\
+                or (action1 == Directions.EAST and action2 == Directions.WEST)\
+                or (action2 == Directions.EAST and action1 == Directions.WEST):
+                feats['ghostInTunnel'] = 1
 
         futureMoves = 0
         for a in gameState.getLegalAction(self.index):
             s = gameState.generateSuccessor(self.index, a)
             futureMoves += 1 + len(s.getLegalAction(self.index))
-        feats['5*5space'] = futureMoves
+        feats['5*5space'] = futureMoves / 6
+
+
 
     def getQValue(self, state, action):
         """
@@ -190,7 +199,7 @@ class ReinforcementAgent(BaseAgent):
         "*** YOUR CODE HERE ***"
         #print(self.weights)
         #print(self.featExtractor.getFeatures(state,action))
-        return self.weights*self.getFeatures(state,action)
+        return self.weight*self.getFeatures(state,action)
         util.raiseNotDefined()
 
     def computeValueFromQValues(self, state):
@@ -258,7 +267,28 @@ class ReinforcementAgent(BaseAgent):
             self.weights[feature]+=self.alpha*difference*self.lastFeature[feature]
 
     def getReward(self, gameState):
-        pass
+        eatenPenalty = 0
+        if gameState.getAgentPosition(self.index) == self.start:
+            eatenPenalty = -10 * self.bornHardLevel
+        survivePenalty = -1
+        eatFoodReward = 0
+        pacman = gameState.getAgentPosition(self.index)
+
+        if len(self.lastNeighbor) != 0:
+            x, y = pacman
+            if (x, y) in self.lastNeighbor:
+                eatFoodReward = 10
+
+        # 储存我的四邻域食物情况
+        self.lastNeighbor = []
+        food = gameState.getFood()
+        legalNeighbors = gameState.getLegalNeighbors(pacman, self.walls)
+        for i in len(legalNeighbors):
+            x, y = legalNeighbors[i]
+            if food[x][y] == True:
+                self.lastNeighbor.append((x, y))
+
+        return eatenPenalty + survivePenalty + eatFoodReward
 
     def getPolicy(self, state):
         return self.computeActionFromQValues(state)
@@ -269,7 +299,20 @@ class ReinforcementAgent(BaseAgent):
     def getWeights(self):
         return self.weights
 
+    def saveWeights(self, gameState):
+        if len(gameState.getFood().asList()) or gameState.data.time >= 1190:
+            f = open("F:\cs188\\reinforcement\\reinforcement\\train.txt", "w")
+            for key in self.weight.keys():
+                value = str(self.weight[key])
+                toPrint = key + ':' + value
+                print(toPrint, file=f)
 
+    def readWeights(self):
+        self.weight = Counter()
+        with open("F:\cs188\\reinforcement\\reinforcement\\train.txt", "r") as f:
+            for line in f.readlines():
+                content = line.split(':')
+                self.weight[content[0]] = int(content[1])
 
 
 
