@@ -122,7 +122,7 @@ class MyAgent(BaseAgent):
 class ReinforcementAgent(BaseAgent):
 
     def registerInitialState(self, gameState):
-        CaptureAgent.registerInitialState(gameState)
+        CaptureAgent.registerInitialState(self,gameState)
         self.start = gameState.getAgentPosition(self.index)
         self.walls = gameState.getWalls()
         self.weight = Counter()
@@ -134,10 +134,10 @@ class ReinforcementAgent(BaseAgent):
         self.weight['numFood'] = 1
         self.weight['bias'] = 1
 
-        self.lastFeature = None
-        self.alpha = 0.1
+        self.lastFeature = Counter()
+        self.alpha = 0.001
         self.gamma = 0.8
-        self.epsilon = 0.2
+        self.epsilon = 0.05
 
         self.bornHardLevel = 0
         for i in range(1, 4):
@@ -177,10 +177,11 @@ class ReinforcementAgent(BaseAgent):
         feats['closestGhost'] = closestGhostPenalty
 
         futureMoves = 0
-        for a in gameState.getLegalAction(self.index):
+        for a in gameState.getLegalActions(self.index):
             s = gameState.generateSuccessor(self.index, a)
-            futureMoves += 1 + len(s.getLegalAction(self.index))
-        feats['5*5space'] = futureMoves
+            futureMoves += 1 + len(s.getLegalActions(self.index))
+        feats['5*5space'] = futureMoves / 6
+        return feats
 
     def getQValue(self, state, action):
         """
@@ -190,7 +191,7 @@ class ReinforcementAgent(BaseAgent):
         "*** YOUR CODE HERE ***"
         #print(self.weights)
         #print(self.featExtractor.getFeatures(state,action))
-        return self.weights*self.getFeatures(state,action)
+        return self.weight*self.getFeatures(state,action)
         util.raiseNotDefined()
 
     def computeValueFromQValues(self, state):
@@ -202,6 +203,7 @@ class ReinforcementAgent(BaseAgent):
         """
         "*** YOUR CODE HERE ***"
         actions=state.getLegalActions(self.index)
+        actions = actionsWithoutStop(actions)
         best_Qvalue=0
         if len(actions)!=0:
             Qvalues = [self.getQValue(state,action) for action in actions]
@@ -216,11 +218,15 @@ class ReinforcementAgent(BaseAgent):
         """
         "*** YOUR CODE HERE ***"
         actions=state.getLegalActions(self.index)
+        actions = actionsWithoutStop(actions)
         best_action=None
         if len(actions)!=0:
-            Qvalues = [self.getQValue(state,action) for action in self.getLegalActions(state)]
+            #print("actions",actions,"  size:",len(actions))
+            Qvalues = [self.getQValue(state,action) for action in actions]
             best_Qvalue=max(Qvalues)
+            #print("bestQvalue",best_Qvalue)
             best_indices=[index for index in range(len(Qvalues)) if Qvalues[index]==best_Qvalue]
+            #print("best_indicies",best_indices,"  size:",len(best_indices))
             chosen_index=random.choice(best_indices)
             best_action=actions[chosen_index]
         return best_action
@@ -245,20 +251,26 @@ class ReinforcementAgent(BaseAgent):
                 action=random.choice(legalActions)
             else:
                 action=self.computeActionFromQValues(state)
+        self.update(state)
+        self.lastFeature=self.getFeatures(state,action)
+        return action
 
-        return action 
-
-    def update(self, state, reward):
+    def update(self, state):
         """
            Should update your weights based on transition
         """
         "*** YOUR CODE HERE ***"
-        difference=reward+self.discount*self.computeValueFromQValues(state)-self.weights*self.lastFeature
-        for feature in features:
-            self.weights[feature]+=self.alpha*difference*self.lastFeature[feature]
+        reward=self.getReward(state)
+        if self.lastFeature!=None:
+            print('weight:',self.weight," lastfeature",self.lastFeature)
+            difference=reward+self.gamma*self.computeValueFromQValues(state)-self.weight*self.lastFeature
+            print("difference:",difference)
+            for feature in self.lastFeature:
+                self.weight[feature]+=self.alpha*difference*self.lastFeature[feature]
+
 
     def getReward(self, gameState):
-        pass
+        return 0
 
     def getPolicy(self, state):
         return self.computeActionFromQValues(state)
@@ -267,7 +279,7 @@ class ReinforcementAgent(BaseAgent):
         return self.computeValueFromQValues(state)
 
     def getWeights(self):
-        return self.weights
+        return self.weight
 
 
 
