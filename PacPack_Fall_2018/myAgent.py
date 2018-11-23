@@ -286,7 +286,6 @@ class ReinforcementAgent(BaseAgent):
         eatenPenalty = 0
         if gameState.getAgentPosition(self.index) == self.start:
             eatenPenalty = -10 * self.bornHardLevel
-        survivePenalty = -1
         eatFoodReward = 0
         pacman = gameState.getAgentPosition(self.index)
 
@@ -310,7 +309,7 @@ class ReinforcementAgent(BaseAgent):
             if food[x][y] == True:
                 self.lastNeighbor.append((x, y))
 
-        return eatenPenalty + survivePenalty + eatFoodReward + foodDecreaseReward
+        return eatenPenalty + eatFoodReward + foodDecreaseReward
 
     def getPolicy(self, state):
         return self.computeActionFromQValues(state)
