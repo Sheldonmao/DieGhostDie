@@ -134,7 +134,6 @@ class ReinforcementAgent(BaseAgent):
 
         self.alpha = 0.001
         self.gamma = 0.8
-        self.epsilon = 0.2
         self.reverse_prob=0.5
 
         self.bornHardLevel = 0
@@ -169,7 +168,7 @@ class ReinforcementAgent(BaseAgent):
         closestGhostPenalty = 1.0 / (closestGhost ** 2) if closestGhost < 20 else 0
         closestFriendPenalty = 1.0 / (closestFriend ** 2) if closestFriend < 5 else 0
         numFood = len(foods)
-        feats['numFood'] = numFood
+        feats['numFood'] = numFood/60
         feats['closestFood'] = closestFoodReward
         feats['closestFriend'] = closestFriendPenalty
         feats['closestGhost'] = closestGhostPenalty
@@ -184,7 +183,7 @@ class ReinforcementAgent(BaseAgent):
         for a in gameState.getLegalActions(self.index):
             s = gameState.generateSuccessor(self.index, a)
             futureMoves += 1 + len(s.getLegalActions(self.index))
-        feats['5*5space'] = futureMoves / 6
+        feats['5*5space'] = futureMoves / 30
         return feats
 
     def getQValue(self, state, action):
@@ -250,7 +249,7 @@ class ReinforcementAgent(BaseAgent):
         legalActions = state.getLegalActions(self.index)
         if util.flipCoin(self.reverse_prob):
             legalActions=actionsWithoutReverse(legalActions,state,self.index)
-                        
+
         action = None
         "*** YOUR CODE HERE ***"
         if pacX <= 2 * self.bornHardLevel - 1:
@@ -275,9 +274,9 @@ class ReinforcementAgent(BaseAgent):
         "*** YOUR CODE HERE ***"
         reward=self.getReward(state)
         if len(self.lastFeature.keys()) != 0:
-            print('weight:',self.weight," lastfeature",self.lastFeature)
+            #print('weight:',self.weight," lastfeature",self.lastFeature)
             difference=reward+self.gamma*self.computeValueFromQValues(state)-self.weight*self.lastFeature
-            print("difference:",difference)
+            #print("difference:",difference)
             for feature in self.lastFeature:
                 self.weight[feature]+=self.alpha*difference*self.lastFeature[feature]
 
@@ -334,6 +333,17 @@ class ReinforcementAgent(BaseAgent):
             for line in f.readlines():
                 content = line.split(':')
                 self.weight[content[0]] = float(content[1])
+        with open("epsilon.txt", "r")as f:
+            self.epsilon = float(f.read())
+
+class TutoredRLAgent(ReinforcementAgent):
+    def update(self, state):
+        ReinforcementAgent.update(self, state)
+        if self.receivedBroadcast != None:
+            features, rewards, lastFeatures = self.receivedBroadcast
+            difference = rewards + self.gamma * features - self.weight * lastFeatures
+            for feature in lastFeatures:
+                self.weight[feature] += self.alpha / 2 * difference * self.lastFeature[feature]
 
 
 

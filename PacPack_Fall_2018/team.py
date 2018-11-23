@@ -7,8 +7,8 @@
 # For more info, see http://inst.eecs.berkeley.edu/~cs188/sp09/pacman.html
 
 from captureAgents import CaptureAgent
-from staffBot import SimpleStaffBot
-from myAgent import MyAgent,ReinforcementAgent
+from staffBot import SimpleStaffBot, TutorBot
+from myAgent import MyAgent,ReinforcementAgent, TutoredRLAgent
 import distanceCalculator
 import random, time, util, sys
 from game import Directions
