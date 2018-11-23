@@ -17,6 +17,7 @@
 from captureAgents import CaptureAgent
 import random, time, util
 from game import Directions
+from util import Counter
 import game
 from util import nearestPoint
 
@@ -109,12 +110,67 @@ class BaseAgent(CaptureAgent):
 
         features = [-numFood, closestFoodReward, closestGhostPenalty, closestFriendPenalty]
 
+        myState = state.getAgentState(self.index)
+
         value = sum(feature * weight for feature, weight in zip(features, self.weights))
         return value
 
 class MyAgent(BaseAgent):
     def toString(self):
         return "MyAgent"
+
+class ReinforcementAgent(BaseAgent):
+    def registerInitialState(self, gameState):
+        CaptureAgent.registerInitialState(gameState)
+        self.start = gameState.getAgentPosition(self.index)
+        self.walls = gameState.getWalls()
+        self.weight = Counter()
+        self.weight['5*5space'] = 0.5
+        self.weight['reverse'] = -1
+        self.weight['closestFriend'] = -1
+        self.weight['closestFood'] = 1
+        self.weight['closestGhost'] = -0.5
+        self.weight['numFood'] = 1
+        self.weight['bias'] = 1
+
+        self.lastQ = None
+        self.lastFeature = None
+
+
+    def getFeatures(self, gameState, action):
+        feats = Counter()
+        feats['bias'] = 1
+        if action == Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]:
+            feats['reverse'] = 1
+        else: feats['reverse'] = 0
+
+        foods = gameState.getFood().asList()
+        ghosts = [gameState.getAgentPosition(ghost) for ghost in gameState.getGhostTeamIndices()]
+        friends = [gameState.getAgentPosition(pacman) for pacman in gameState.getPacmanTeamIndices() if pacman != self.index]
+        pacman = gameState.getAgentPosition(self.index)
+        closestFood = min(self.distancer.getDistance(pacman, food) for food in foods) + 2.0 \
+            if len(foods) > 0 else 1.0
+        closestGhost = min(self.distancer.getDistance(pacman, ghost) for ghost in ghosts) + 1.0 \
+            if len(ghosts) > 0 else 1.0
+        closestFriend = min(self.distancer.getDistance(pacman, friend) for friend in friends) + 1.0 \
+            if len(friends) > 0 else 1.0
+        closestFoodReward = 1.0 / closestFood
+        closestGhostPenalty = 1.0 / (closestGhost ** 2) if closestGhost < 20 else 0
+        closestFriendPenalty = 1.0 / (closestFriend ** 2) if closestFriend < 5 else 0
+        numFood = len(foods)
+        feats['numFood'] = numFood
+        feats['closestFood']= closestFoodReward
+        feats['closestFriend'] = closestFriendPenalty
+        feats['closestGhost'] = closestGhostPenalty
+
+        futureMoves = 0
+        for a in gameState.getLegalAction(self.index):
+            s = gameState.generateSuccessor(self.index, a)
+            futureMoves += 1 + len(s.getLegalAction(self.index))
+        feats['5*5space'] = futureMoves
+
+    def getReward(self, gameState):
+        pass
 
 
 def actionsWithoutStop(legalActions):
