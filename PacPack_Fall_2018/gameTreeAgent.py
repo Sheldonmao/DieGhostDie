@@ -77,10 +77,14 @@ class GameTreeAgent(CaptureAgent):
         self.dangerFood = list(self.dangerFood)
         self.dangerFood.extend(list(nearbyDangerFood))
         self.dangerFood = set(self.dangerFood)
-        self.friendIsStupid = True
+
+        # self.friendIsStupid = True
+        # self.simpleEvalTimes = 0
+        # self.simpleRightTimes = 0
+        # self.friendBehavior = Directions.STOP
+        # self.friendPrediction = Directions.STOP
 
     def evaluation(self, gameState, ghostAction):
-        #TODO: try use negative features to limit reverse behavior
         #TODO: evaluate smarter staff bot
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         friendPos = gameState.getAgentPosition(self.friendIndex)
@@ -233,7 +237,6 @@ class GameTreeAgent(CaptureAgent):
         return rtn
 
     def chooseAction(self, gameState):
-        #TODO: add a lure behavior
         self.debugClear()
         pacX, pacY = gameState.getAgentPosition(self.index)
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
