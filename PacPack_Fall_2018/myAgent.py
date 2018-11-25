@@ -20,6 +20,7 @@ from game import Directions, Actions
 from util import Counter
 import game
 from util import nearestPoint
+#import numpy as np
 
 
 #########
@@ -129,11 +130,23 @@ class ReinforcementAgent(BaseAgent):
         self.walls = gameState.getWalls()
 
         self.readWeights()
+        self.prefixed_weight = Counter()
+        self.prefixed_weight['bias'] = 0
+        self.prefixed_weight['reverse'] = -1000
+        self.prefixed_weight['numFood'] = 60
+        self.prefixed_weight['closestFood'] = 5
+        self.prefixed_weight['closestFriend'] = -0.5
+        self.prefixed_weight['closestGhost'] = -1
+        self.prefixed_weight['pacInTunnel'] = -0.07
+        self.prefixed_weight['5*5space'] = 1
+        self.prefixed_weight['2_step_foods']=1
+        self.prefixed_weight["eatFoodFeature"]=5
+
         self.lastNeighbor = []
         self.lastFeature = Counter()
 
-        self.alpha = 0.001
-        self.gamma = 0.8
+        self.alpha = 0.01
+        self.gamma = 0.95
         self.reverse_prob=0.5
 
         self.bornHardLevel = 0
@@ -148,16 +161,17 @@ class ReinforcementAgent(BaseAgent):
             self.bornHardLevel += 1
 
     def getFeatures(self, gameState, action):
+        new_state = gameState.generateSuccessor(self.index, action)
         feats = Counter()
-        feats['bias'] = 1
+        feats['bias'] = 0
         if action == Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]:
             feats['reverse'] = 1
         else: feats['reverse'] = 0
 
-        foods = gameState.getFood().asList()
-        ghosts = [gameState.getAgentPosition(ghost) for ghost in gameState.getGhostTeamIndices()]
-        friends = [gameState.getAgentPosition(pacman) for pacman in gameState.getPacmanTeamIndices() if pacman != self.index]
-        pacman = gameState.getAgentPosition(self.index)
+        foods = new_state.getFood().asList()
+        ghosts = [new_state.getAgentPosition(ghost) for ghost in new_state.getGhostTeamIndices()]
+        friends = [new_state.getAgentPosition(pacman) for pacman in new_state.getPacmanTeamIndices() if pacman != self.index]
+        pacman = new_state.getAgentPosition(self.index)
         closestFood = min(self.distancer.getDistance(pacman, food) for food in foods) + 2.0 \
             if len(foods) > 0 else 1.0
         closestGhost = min(self.distancer.getDistance(pacman, ghost) for ghost in ghosts) + 1.0 \
@@ -168,25 +182,59 @@ class ReinforcementAgent(BaseAgent):
         closestGhostPenalty = 1.0 / (closestGhost ** 2) if closestGhost < 20 else 0
         closestFriendPenalty = 1.0 / (closestFriend ** 2) if closestFriend < 5 else 0
         numFood = len(foods)
-        feats['numFood'] = numFood/60
+        feats['numFood'] = -numFood/60
         feats['closestFood'] = closestFoodReward
         feats['closestFriend'] = closestFriendPenalty
         feats['closestGhost'] = closestGhostPenalty
 
-        pacActions = gameState.getLegalActions(gameState.getGhostTeamIndices()[0])
+        pacActions = new_state.getLegalActions(new_state.getGhostTeamIndices()[0])
         pacActions = actionsWithoutStop(pacActions)
         feats['pacInTunnel'] = 0
         if len(pacActions) == 2:
             feats['pacInTunnel'] = 1
 
         futureMoves = 0
-        for a in gameState.getLegalActions(self.index):
-            s = gameState.generateSuccessor(self.index, a)
-            futureMoves += 1 + len(s.getLegalActions(self.index))
-        feats['5*5space'] = futureMoves / 30
+        neighbour_foods=0
+        freelist=[]
+        for a in new_state.getLegalActions(self.index):
+            s = new_state.generateSuccessor(self.index, a)
+            new_actions=s.getLegalActions(self.index)
+            for i in range(len(new_actions)):
+                new_s=s.generateSuccessor(self.index, new_actions[i])
+                new_pos=new_s.getAgentPosition(self.index)
+                if  new_pos not in freelist:
+                    if s.hasFood(new_pos[0],new_pos[1]):
+                        neighbour_foods+=1
+                    freelist.append(new_pos)
+            #futureMoves += 1 + len(s.getLegalActions(self.index))
+        print(freelist,len(freelist))
+        print("neighbour_foods",neighbour_foods)
+        feats['5*5space'] = len(freelist)/ 13
+        feats["2_step_foods"]=neighbour_foods
+
+        posX,posY=new_state.getAgentPosition(self.index)
+        if gameState.hasFood(posX,posY):
+            feats["eatFoodFeature"]=1
+        #pacX, pacY = new_state.getAgentPosition(self.index)
+        #freespace=0
+        #walls=new_state.getWalls()
+        #xlb=max(pacX-2,0)
+        #xub=min(pacX+2,walls.width-1)
+        #for i in range(xlb,xub+1):
+        #    jrange=5-2*abs(pacX-i)
+        #    jlb=max(pacY-jrange,0)
+        #    jub=min(pacY+jrange,walls.height-1)
+        #    #print("walls:",walls.width,walls.height)
+        #    for j in range(jlb,jub+1):
+        #        if new_state.hasWall(i,j)==False:
+        #            freespace+=1
+        #print("freespace",freespace)
+        #feats['5*5space'] = freespace / 13
+
+
         return feats
 
-    def getQValue(self, state, action):
+    def getQValue(self, state, action,fixed=0):
         """
           Should return Q(state,action) = w * featureVector
           where * is the dotProduct operator
@@ -194,7 +242,10 @@ class ReinforcementAgent(BaseAgent):
         "*** YOUR CODE HERE ***"
         #print(self.weights)
         #print(self.featExtractor.getFeatures(state,action))
-        return self.weight*self.getFeatures(state,action)
+        if fixed==0:
+            return self.weight*self.getFeatures(state,action)
+        else:
+            return self.prefixed_weight*self.getFeatures(state,action)
 
     def computeValueFromQValues(self, state):
         """
@@ -224,13 +275,18 @@ class ReinforcementAgent(BaseAgent):
         best_action=None
         if len(actions)!=0:
             #print("actions",actions,"  size:",len(actions))
-            Qvalues = [self.getQValue(state,action) for action in actions]
+
+            Qvalues = [self.getQValue(state,action,1) for action in actions]
             best_Qvalue=max(Qvalues)
             #print("bestQvalue",best_Qvalue)
             best_indices=[index for index in range(len(Qvalues)) if Qvalues[index]==best_Qvalue]
-            #print("best_indicies",best_indices,"  size:",len(best_indices))
+            #print("actions")
+            #for i in range(len(actions)):
+            #    print(actions[i],"Q value:",Qvalues[i])
+            #print("best_actions",best_indices,"  size:",len(best_indices))
             chosen_index=random.choice(best_indices)
             best_action=actions[chosen_index]
+            #print("best action:",best_action)
         return best_action
 
     def chooseAction(self, state):
@@ -262,6 +318,7 @@ class ReinforcementAgent(BaseAgent):
                 action=random.choice(legalActions)
             else:
                 action=self.computeActionFromQValues(state)
+        #print("action choosen",action)
         self.update(state)
         self.lastFeature=self.getFeatures(state,action)
         self.saveWeights(state)
@@ -275,7 +332,9 @@ class ReinforcementAgent(BaseAgent):
         reward=self.getReward(state)
         if len(self.lastFeature.keys()) != 0:
             #print('weight:',self.weight," lastfeature",self.lastFeature)
+            #print(" lastfeature",self.lastFeature)
             difference=reward+self.gamma*self.computeValueFromQValues(state)-self.weight*self.lastFeature
+            #print("reward:",reward)
             #print("difference:",difference)
             for feature in self.lastFeature:
                 self.weight[feature]+=self.alpha*difference*self.lastFeature[feature]
