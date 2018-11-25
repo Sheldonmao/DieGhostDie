@@ -14,13 +14,14 @@ import random, time, util, sys
 from game import Directions
 import game
 from util import nearestPoint
+from gameTreeAgent import GameTreeAgent
 
 #################
 # Team creation #
 #################
 
 def createTeam(firstIndex, secondIndex, isPacman,
-               first='TutorBot', second='TutoredRLAgent', numTraining=0):
+               first='SimpleStaffBot', second='GameTreeAgent', numTraining=0):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent

@@ -58,7 +58,6 @@ class GameTreeAgent(CaptureAgent):
             if wallsAround >= 5: self.dangerFood.append(food)
             self.foodWithEnv.append((food, wallsAround))
         self.dangerFood = set(self.dangerFood)
-        print(self.dangerFood)
         nearbyDangerFood = set()
         for food in self.dangerFood:
             for offset in dir:
@@ -69,9 +68,10 @@ class GameTreeAgent(CaptureAgent):
         self.dangerFood = list(self.dangerFood)
         self.dangerFood.extend(list(nearbyDangerFood))
         self.dangerFood = set(self.dangerFood)
-        print(self.dangerFood)
+        self.friendIsStupid = True
 
     def evaluation(self, gameState, ghostAction):
+        #TODO: try use negative features to limit reverse behavior
         #TODO: evaluate smarter staff bot
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         friendPos = gameState.getAgentPosition(self.friendIndex)
@@ -149,14 +149,6 @@ class GameTreeAgent(CaptureAgent):
         closestFood = closestFoodDist + 2.0 if len(foods) > 0 else 1.0
         myFeats['closestFood'] = 3 * coefficient / closestFood
         if myFeats['closestFood'] == 0: myFeats['numFood'] = -60
-
-        # availableActions = getLimitedAction(gameState, self.index)
-        # freeLevel = 0
-        # for a in availableActions:
-        #     successor = gameState.generateSuccessor(self.index, a)
-        #     nextActions = len(getLimitedAction(successor, self.index))
-        #     freeLevel += nextActions + 1
-        # myFeats['freeLevel'] = freeLevel
         myFeats['closestGhost'] = 1.0 / (ghostToMe ** 2) if ghostToMe < 20 else 0
         myFeats['closestFriend'] = 1.0 / ((friendToMe+0.01) ** 2) if friendToMe < 5 else 0
 
