@@ -25,6 +25,7 @@ class GameTreeAgent(CaptureAgent):
                 self.friendIndex = i
                 break
         self.walls = gameState.getWalls()
+        foodGrid = gameState.getFood()
         self.bornHardLevel = 0
         for i in range(1, 4):
             col = 2 * i
@@ -45,9 +46,33 @@ class GameTreeAgent(CaptureAgent):
                         isWall = False
                         break
             if isWall: self.bornHardLevel += 1
-
+        self.dangerFood = list()
+        self.foodWithEnv = list()
+        for food in gameState.getFood().asList():
+            wallsAround = 0
+            for offset in dir:
+                x = food[0] + offset[0]
+                y = food[1] + offset[1]
+                if self.walls[x][y]:
+                    wallsAround += 1
+            if wallsAround >= 5: self.dangerFood.append(food)
+            self.foodWithEnv.append((food, wallsAround))
+        self.dangerFood = set(self.dangerFood)
+        print(self.dangerFood)
+        nearbyDangerFood = set()
+        for food in self.dangerFood:
+            for offset in dir:
+                x = offset[0] + food[0]
+                y = offset[1] + food[1]
+                if foodGrid[x][y]:
+                    nearbyDangerFood.add((x, y))
+        self.dangerFood = list(self.dangerFood)
+        self.dangerFood.extend(list(nearbyDangerFood))
+        self.dangerFood = set(self.dangerFood)
+        print(self.dangerFood)
 
     def evaluation(self, gameState, ghostAction):
+        #TODO: evaluate smarter staff bot
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         friendPos = gameState.getAgentPosition(self.friendIndex)
         myPos = gameState.getAgentPosition(self.index)
@@ -92,9 +117,26 @@ class GameTreeAgent(CaptureAgent):
 
         ###My Evaluation###
         myWeight = {'numFood': 1, 'closestFood': 1,
-                   'closestGhost': -1, 'closestFriend': -1}
+                   'closestGhost': -0.5, 'closestFriend': -0.5}
         myFeats = Counter()
         myFeats['numFood'] = -len(foods)
+
+        #Remove friend's target
+        friendTargets = [food for food in foods if self.distancer.getDistance(friendPos, food) < 7]
+        targetsNearTargets = []
+        for f in friendTargets:
+            targetsNearTargets.extend([food for food in foods if self.distancer.getDistance(f, food) < 4])
+        friendTargets.extend(targetsNearTargets)
+        friendTargets = set(friendTargets)
+        if -myFeats['numFood'] - len(friendTargets) > 3:
+            for f in friendTargets:
+                if f in foods: foods.remove(f)
+
+        #Remove really dangerous food
+        if -myFeats['numFood'] > 10:
+            for f in self.dangerFood:
+                if f in foods and self.distancer.getDistance(ghostPos, f) < 8:
+                    foods.remove(f)
 
         closestFoodDist = self.distancer.getDistance(myPos, foods[0])
         theFood = foods[0]
@@ -158,7 +200,6 @@ class GameTreeAgent(CaptureAgent):
             rtn = random.choice(maxValues)
             if layer == 2:
                 self.debugDraw(gameState.generateSuccessor(self.ghostIndex, rtn[1]).getAgentPosition(self.ghostIndex), [0,0,1])
-                print(gameState.generateSuccessor(self.ghostIndex, rtn[1]).getAgentPosition(self.ghostIndex))
             if saveAction: self.decision = rtn[1]
             return rtn[0]
 
@@ -183,6 +224,7 @@ class GameTreeAgent(CaptureAgent):
         return rtn
 
     def chooseAction(self, gameState):
+        #TODO: add a lure behavior
         self.debugClear()
         pacX, pacY = gameState.getAgentPosition(self.index)
         if pacX <= self.bornHardLevel * 2 - 1 and pacX % 2 == 1:
@@ -196,13 +238,10 @@ class GameTreeAgent(CaptureAgent):
     ###Helper Functions###
 
     def foodEval(self, gameState, food, ghost, friend):
-        #FIXME: How to consider my friend
-        #FIXME: How to evaluate the coefficient correctly
         walls = gameState.getWalls()
         foods = gameState.getFood()
         foodX, foodY = food
         ghostAround = False
-        friendAround = False
         cornerAround = 0
         foodAround = 0
         for offset in dir:
@@ -215,20 +254,18 @@ class GameTreeAgent(CaptureAgent):
         ghostDist = self.distancer.getDistance(food, ghost)
         if ghostDist < 4:
             ghostAround = True
-        friendDist = self.distancer.getDistance(food, friend)
-        if friendDist < 4:
-            friendAround = True
         if ghostAround and cornerAround != 0:
             if cornerAround == 6: return 0.6 + foodAround * 0.05
-            elif cornerAround == 7: return 0.3 + friendAround * 0.05
+            elif cornerAround == 7: return 0.3 + foodAround * 0.05
             elif cornerAround > 7: return 0
         elif cornerAround != 0:
             if cornerAround == 6: return 0.9 + foodAround * 0.1
-            elif cornerAround == 7: return 0.6 + friendAround * 0.1
+            elif cornerAround == 7: return 0.6 + foodAround * 0.1
             elif cornerAround > 7: return 0.5 + foodAround * 0.05
         return 1
 
-
+def mannhattanDistance(pos1, pos2):
+    return abs(pos1[0]-pos2[0]) + abs(pos1[1]-pos2[1])
 
 
 
