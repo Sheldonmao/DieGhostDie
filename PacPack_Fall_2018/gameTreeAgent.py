@@ -77,12 +77,14 @@ class GameTreeAgent(CaptureAgent):
         self.dangerFood = list(self.dangerFood)
         self.dangerFood.extend(list(nearbyDangerFood))
         self.dangerFood = set(self.dangerFood)
-
-        # self.friendIsStupid = True
-        # self.simpleEvalTimes = 0
-        # self.simpleRightTimes = 0
-        # self.friendBehavior = Directions.STOP
-        # self.friendPrediction = Directions.STOP
+        ###Atributes for which evaluation to use for friend###
+        self.friendIsStupid = True
+        self.simpleEvalTimes = 0
+        self.simpleRightTimes = 0
+        self.lastGameState = None
+        self.friendBehavior = Directions.STOP
+        self.friendPrediction = [Directions.STOP, Directions.STOP]
+        self.lastEvaluated = False
 
     def evaluation(self, gameState, ghostAction):
         #TODO: evaluate smarter staff bot
@@ -120,13 +122,33 @@ class GameTreeAgent(CaptureAgent):
         ghostEval = ghostFeats * ghostWeight
 
         ###Friend Evaluation###
-        friendWeight = {'numFood': 1, 'closestFoodReward': 1}
-        friendFeats = Counter()
-        friendFeats['numFood'] = -len(foods)
-        closestFood = min(self.distancer.getDistance(friendPos, food) for food in foods) + 2.0 \
-            if len(foods) > 0 else 1.0
-        friendFeats['closestFoodReward'] = 1.0 / closestFood
-        friendEval = friendFeats * friendWeight
+        if self.friendIsStupid:
+            friendWeight = {'numFood': 1, 'closestFoodReward': 1}
+            friendFeats = Counter()
+            friendFeats['numFood'] = -len(foods)
+            closestFood = min(self.distancer.getDistance(friendPos, food) for food in foods) + 2.0 \
+                if len(foods) > 0 else 1.0
+            friendFeats['closestFoodReward'] = 1.0 / closestFood
+            friendEval = friendFeats * friendWeight
+        else:
+            friendWeight = {'numFood': 1, 'closestFoodReward': 1,
+                            'closestGhost': -0.5, 'closestFriend': -1}
+            friendFeats = Counter()
+            friendFeats['numFood'] = -len(foods)
+            #Remove dangerous food as the smarter staff bot
+            currentDangerFood = []
+            for f in foods:
+                if f in self.dangerFood: currentDangerFood.append(f)
+            closestFoodDist = min(2 * self.distancer.getDistance(friendPos, food) for food in currentDangerFood)\
+                              + 2.0 if len(currentDangerFood) > 0 else 1.0
+            closestFoodDist = min(closestFoodDist, min(self.distancer.getDistance(friendPos, food)\
+                                   for food in foods if food not in self.dangerFood) + 2.0 \
+                                   if len(foods) != currentDangerFood else 1.0)
+
+            friendFeats['closestFoodReward'] = 1.0 / closestFoodDist
+            friendFeats['closestGhost'] = 1.0 / (ghostToFriend ** 2) if ghostToMe < 20 else 0
+            friendFeats['closestFriend'] = 1.0 / ((friendToMe + 0.01) ** 2) if friendToMe < 5 else 0
+
 
         ###My Evaluation###
         myWeight = {'numFood': 1, 'closestFood': 1, 'freeLevel': 0.1,
@@ -231,6 +253,7 @@ class GameTreeAgent(CaptureAgent):
                 rtn = value
         if layer == 2 and evalToGet == 1:
             self.debugDraw(gameState.generateSuccessor(self.friendIndex, decision).getAgentPosition(self.friendIndex), [0,1,0])
+            self.getNewPrediction(decision)
         if layer == 2 and evalToGet == 0:
             self.debugDraw(gameState.generateSuccessor(self.index, decision).getAgentPosition(self.index), [1,0,0])
         if saveAction: self.decision = decision
@@ -238,6 +261,7 @@ class GameTreeAgent(CaptureAgent):
 
     def chooseAction(self, gameState):
         self.debugClear()
+
         pacX, pacY = gameState.getAgentPosition(self.index)
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         if pacX >= 32 - self.bornHardLevel * 2 \
@@ -263,7 +287,26 @@ class GameTreeAgent(CaptureAgent):
                 return Directions.NORTH
             elif (pacX+1) / 2 % 2 == 0 and pacY != 1:
                 return Directions.SOUTH
+
+        if self.lastEvaluated:
+            for a in self.lastGameState.getLegalActions(self.friendIndex):
+                successor = self.lastGameState.generateSuccessor(self.friendIndex, a)
+                if successor.getAgentPosition(self.friendIndex) == gameState.getAgentPosition(self.friendIndex):
+                    self.friendBehavior = a
+                    break
+            if self.friendBehavior == self.friendPrediction[0]:
+                self.simpleRightTimes += 1
+            self.simpleEvalTimes += 1
+            self.lastEvaluated = False
+
         self.terminal(gameState, self.index, 2, saveAction=True)
+        if self.simpleEvalTimes < 10:
+            self.lastEvaluated = True
+            self.lastGameState = gameState
+        elif self.simpleEvalTimes == 10:
+            accuracy = float(self.simpleRightTimes / self.simpleEvalTimes)
+            if accuracy < 0.3:
+                self.friendIsStupid = False
         return self.decision
 
     ###Helper Functions###
@@ -294,6 +337,10 @@ class GameTreeAgent(CaptureAgent):
             elif cornerAround == 7: return 0.6 + foodAround * 0.1
             elif cornerAround > 7: return 0.5 + foodAround * 0.05
         return 1
+
+    def getNewPrediction(self, a):
+        self.friendPrediction[0] = self.friendPrediction[1]
+        self.friendPrediction[1] = a
 
 def mannhattanDistance(pos1, pos2):
     return abs(pos1[0]-pos2[0]) + abs(pos1[1]-pos2[1])
