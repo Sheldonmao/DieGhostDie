@@ -78,13 +78,14 @@ class GameTreeAgent(CaptureAgent):
         self.dangerFood.extend(list(nearbyDangerFood))
         self.dangerFood = set(self.dangerFood)
         ###Atributes for which evaluation to use for friend###
-        self.friendIsStupid = True
+        self.friendIsStupid = False
         self.simpleEvalTimes = 0
         self.simpleRightTimes = 0
         self.lastGameState = None
         self.friendBehavior = Directions.STOP
         self.friendPrediction = [Directions.STOP, Directions.STOP]
         self.lastEvaluated = False
+        self.toBroadcast = []
 
     def evaluation(self, gameState, ghostAction):
         #TODO: evaluate smarter staff bot
@@ -139,15 +140,16 @@ class GameTreeAgent(CaptureAgent):
             currentDangerFood = []
             for f in foods:
                 if f in self.dangerFood: currentDangerFood.append(f)
-            closestFoodDist = min(2 * self.distancer.getDistance(friendPos, food) for food in currentDangerFood)\
+            closestFoodDist = min(10 * self.distancer.getDistance(friendPos, food) for food in currentDangerFood)\
                               + 2.0 if len(currentDangerFood) > 0 else 1.0
             closestFoodDist = min(closestFoodDist, min(self.distancer.getDistance(friendPos, food)\
                                    for food in foods if food not in self.dangerFood) + 2.0 \
-                                   if len(foods) != currentDangerFood else 1.0)
+                                   if len(foods) != len(currentDangerFood) else 1.0)
 
             friendFeats['closestFoodReward'] = 1.0 / closestFoodDist
             friendFeats['closestGhost'] = 1.0 / (ghostToFriend ** 2) if ghostToMe < 20 else 0
             friendFeats['closestFriend'] = 1.0 / ((friendToMe + 0.01) ** 2) if friendToMe < 5 else 0
+            friendEval = friendFeats * friendWeight
 
 
         ###My Evaluation###
@@ -200,6 +202,7 @@ class GameTreeAgent(CaptureAgent):
         return myEval, friendEval, ghostEval
 
     def terminal(self, state, index, layer, action=None, saveAction=False):
+        #TODO: fix with received broadcast
         if layer == 0:
             return self.evaluation(state, action)
         else:
@@ -207,6 +210,14 @@ class GameTreeAgent(CaptureAgent):
                 evalToGet = 0
             elif index == self.friendIndex:
                 evalToGet = 1
+                #if not self.friendIsStupid and self.receivedBroadcast != None and len(self.receivedBroadcast) > 2 - layer:
+                if self.receivedBroadcast != None and len(self.receivedBroadcast) > 2 - layer:
+                    ghost = state.getAgentPosition(self.ghostIndex)
+                    friend = state.getAgentPosition(self.friendIndex)
+                    actions = state.getLegalActions(self.friendIndex)
+                    if self.distancer.getDistance(ghost, friend) >= 10 and self.receivedBroadcast[2-layer] in actions:
+                        nextState = state.generateSuccessor(self.friendIndex, self.receivedBroadcast[2-layer])
+                        return self.terminal(nextState, self.ghostIndex, layer)
             else:
                 evalToGet = 2
             return self.maxValue(state, evalToGet, layer, saveAction)
@@ -261,7 +272,7 @@ class GameTreeAgent(CaptureAgent):
 
     def chooseAction(self, gameState):
         self.debugClear()
-
+        self.toBroadcast = []
         pacX, pacY = gameState.getAgentPosition(self.index)
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         if pacX >= 32 - self.bornHardLevel * 2 \
@@ -281,6 +292,7 @@ class GameTreeAgent(CaptureAgent):
                     if newDist < lureDist:
                         lureDist = newDist
                         action = a
+                self.toBroadcast.append(action)
                 return action
         if pacX <= self.bornHardLevel * 2 - 1 and pacX % 2 == 1:
             if (pacX+1) / 2 % 2 == 1 and pacY != self.walls.height - 2:
@@ -307,6 +319,7 @@ class GameTreeAgent(CaptureAgent):
             accuracy = float(self.simpleRightTimes / self.simpleEvalTimes)
             if accuracy < 0.3:
                 self.friendIsStupid = False
+        self.toBroadcast.append(self.decision)
         return self.decision
 
     ###Helper Functions###
