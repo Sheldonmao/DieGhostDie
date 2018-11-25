@@ -133,7 +133,7 @@ class ReinforcementAgent(BaseAgent):
         self.lastFeature = Counter()
 
         self.alpha = 0.001
-        self.gamma = 0.8
+        self.gamma = 0.99
         self.reverse_prob=0.5
 
         self.bornHardLevel = 0
@@ -168,7 +168,7 @@ class ReinforcementAgent(BaseAgent):
         closestGhostPenalty = 1.0 / (closestGhost ** 2) if closestGhost < 20 else 0
         closestFriendPenalty = 1.0 / (closestFriend ** 2) if closestFriend < 5 else 0
         numFood = len(foods)
-        feats['numFood'] = numFood/60
+        feats['numFood'] = -numFood/60
         feats['closestFood'] = closestFoodReward
         feats['closestFriend'] = closestFriendPenalty
         feats['closestGhost'] = closestGhostPenalty
@@ -341,9 +341,9 @@ class TutoredRLAgent(ReinforcementAgent):
         ReinforcementAgent.update(self, state)
         if self.receivedBroadcast != None:
             features, rewards, lastFeatures = self.receivedBroadcast
-            difference = rewards + self.gamma * features - self.weight * lastFeatures
+            difference = rewards + self.gamma * (self.weight * features) - self.weight * lastFeatures
             for feature in lastFeatures:
-                self.weight[feature] += self.alpha / 2 * difference * self.lastFeature[feature]
+                self.weight[feature] += self.alpha / 2 * difference * lastFeatures[feature]
 
 
 

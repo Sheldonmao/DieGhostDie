@@ -232,6 +232,7 @@ class TutorBot(SimpleStaffBot):
         feats['pacInTunnel'] = 0
         if len(pacActions) == 2:
             feats['pacInTunnel'] = 1
+        return feats
 
     def chooseAction(self, gameState):
         self.thisAction = SimpleStaffBot.chooseAction(self, gameState)
@@ -243,8 +244,10 @@ class TutorBot(SimpleStaffBot):
         features = self.getFeatures(state, self.thisAction)
         rewards = self.getReward(state)
         if len(self.lastFeature.keys()) == 0:
-            return [features, rewards, features]
-        else: return [features, rewards, self.lastFeature]
+            rtn = [features, rewards, features]
+        else: rtn = [features, rewards, self.lastFeature]
+        self.lastFeature = features
+        return rtn
 
 
 def actionsWithoutStop(legalActions):

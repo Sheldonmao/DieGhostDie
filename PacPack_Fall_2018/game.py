@@ -707,7 +707,7 @@ class Game:
             if len(teammateList) > 0:
                 otherPacman = teammateList[0]
                 broadcast = agent.toBroadcast
-                assert broadcast is None or all([a in LEGAL_DIRECTIONS for a in broadcast])
+                #assert broadcast is None or all([a in LEGAL_DIRECTIONS for a in broadcast])
                 otherPacman.receivedBroadcast = broadcast
                 
             self.unmute()
