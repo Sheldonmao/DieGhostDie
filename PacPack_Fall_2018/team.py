@@ -8,7 +8,7 @@
 
 from captureAgents import CaptureAgent
 from staffBot import SimpleStaffBot, TutorBot
-from myAgent import MyAgent,ReinforcementAgent, TutoredRLAgent
+from myAgent import MyAgent,ReinforcementAgent, TutoredRLAgent, BaseAgent
 import distanceCalculator
 import random, time, util, sys
 from game import Directions

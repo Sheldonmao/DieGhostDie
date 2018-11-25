@@ -24,6 +24,7 @@ class GameTreeAgent(CaptureAgent):
             if i != self.index:
                 self.friendIndex = i
                 break
+        self.ghostStart = gameState.getAgentPosition(self.ghostIndex)
         self.walls = gameState.getWalls()
         foodGrid = gameState.getFood()
         self.bornHardLevel = 0
@@ -48,14 +49,21 @@ class GameTreeAgent(CaptureAgent):
             if isWall: self.bornHardLevel += 1
         self.dangerFood = list()
         self.foodWithEnv = list()
+        self.clusteredFood = set()
         for food in gameState.getFood().asList():
             wallsAround = 0
+            foodAround = 0
             for offset in dir:
                 x = food[0] + offset[0]
                 y = food[1] + offset[1]
                 if self.walls[x][y]:
                     wallsAround += 1
+                if foodGrid[x][y]:
+                    foodAround += 1
             if wallsAround >= 5: self.dangerFood.append(food)
+            elif wallsAround >= 3 and (food[0] == 1 or food[0] == 32 or food[1] == 1 or food[1] == 16):
+                self.dangerFood.append(food)
+            if foodAround >= 3: self.clusteredFood.add(food)
             self.foodWithEnv.append((food, wallsAround))
         self.dangerFood = set(self.dangerFood)
         nearbyDangerFood = set()
@@ -116,8 +124,8 @@ class GameTreeAgent(CaptureAgent):
         friendEval = friendFeats * friendWeight
 
         ###My Evaluation###
-        myWeight = {'numFood': 1, 'closestFood': 1,
-                   'closestGhost': -0.5, 'closestFriend': -0.5}
+        myWeight = {'numFood': 1, 'closestFood': 1, 'freeLevel': 0.1,
+                   'closestGhost': -0.5, 'closestFriend': -0.5, 'reverse': -5}
         myFeats = Counter()
         myFeats['numFood'] = -len(foods)
 
@@ -137,20 +145,28 @@ class GameTreeAgent(CaptureAgent):
             for f in self.dangerFood:
                 if f in foods and self.distancer.getDistance(ghostPos, f) < 8:
                     foods.remove(f)
-
-        closestFoodDist = self.distancer.getDistance(myPos, foods[0])
-        theFood = foods[0]
-        for food in foods:
-            newDist = self.distancer.getDistance(myPos, food)
-            if newDist < closestFoodDist:
-                closestFoodDist = newDist
-                theFood = food
-        coefficient = self.foodEval(gameState, food, ghostPos, friendPos)
-        closestFood = closestFoodDist + 2.0 if len(foods) > 0 else 1.0
-        myFeats['closestFood'] = 3 * coefficient / closestFood
+        if len(foods) == 0: myFeats['closestFood'] = 30
+        else:
+            closestFoodDist = self.distancer.getDistance(myPos, foods[0])
+            theFood = foods[0]
+            for food in foods:
+                newDist = self.distancer.getDistance(myPos, food)
+                if newDist < closestFoodDist:
+                    closestFoodDist = newDist
+                    theFood = food
+            coefficient = self.foodEval(gameState, food, ghostPos, friendPos)
+            closestFood = closestFoodDist + 2.0 if len(food) > 0 else 1.0
+            myFeats['closestFood'] = 3 * coefficient / closestFood
         if myFeats['closestFood'] == 0: myFeats['numFood'] = -60
         myFeats['closestGhost'] = 1.0 / (ghostToMe ** 2) if ghostToMe < 20 else 0
         myFeats['closestFriend'] = 1.0 / ((friendToMe+0.01) ** 2) if friendToMe < 5 else 0
+
+        if myFeats['closestGhost'] > 0.1:
+            restriction = 0
+            for offset in dir:
+                if self.walls[myPos[0] + offset[0]][myPos[1] + offset[1]]:
+                    restriction += 1
+            myFeats['freeLevel'] = 1.0 / (restriction + 1.0)
 
         myEval = myFeats * myWeight
 
@@ -198,6 +214,10 @@ class GameTreeAgent(CaptureAgent):
         ###Friend&My Actions###
         index = self.friendIndex if evalToGet == 1 else self.index
         nextIndex = self.ghostIndex if evalToGet == 1 else self.friendIndex
+        # if evalToGet == 1: actions = getLimitedAction(gameState, index)
+        # else:
+        #     actions = gameState.getLegalAction(self.index)
+        #     actions.remove(Directions.STOP)
         actions = getLimitedAction(gameState, index)
         rtn = None
         decision = Directions.STOP
@@ -219,6 +239,22 @@ class GameTreeAgent(CaptureAgent):
         #TODO: add a lure behavior
         self.debugClear()
         pacX, pacY = gameState.getAgentPosition(self.index)
+        ghostPos = gameState.getAgentPosition(self.ghostIndex)
+        if pacX >= 32 - self.bornHardLevel * 2 \
+                and self.distancer.getDistance((pacX, pacY), ghostPos):
+            if self.distancer.getDistance((pacX, pacY), self.ghostStart)\
+                < self.distancer.getDistance(ghostPos, self.ghostStart)\
+                and min([self.distancer.getDistance(gameState.getAgentPosition(self.friendIndex),\
+                        f) for f in self.clusteredFood]) < 5:
+                lureDist = float('inf')
+                action = Directions.STOP
+                for a in getLimitedAction(gameState, self.index):
+                    successor = gameState.generateSuccessor(self.index, a)
+                    newDist = self.distancer.getDistance(successor.getAgentPosition(self.index), self.ghostStart)
+                    if newDist < lureDist:
+                        lureDist = newDist
+                        action = a
+                return action
         if pacX <= self.bornHardLevel * 2 - 1 and pacX % 2 == 1:
             if (pacX+1) / 2 % 2 == 1 and pacY != self.walls.height - 2:
                 return Directions.NORTH
