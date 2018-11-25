@@ -1,6 +1,7 @@
 """
 An agent using non-zerosum game tree strategy.
 Currently hardcode for friend and ghost.
+@Author: Zhibo Fan
 """
 
 from util import Counter
@@ -63,7 +64,7 @@ class GameTreeAgent(CaptureAgent):
             if wallsAround >= 5: self.dangerFood.append(food)
             elif wallsAround >= 3 and (food[0] == 1 or food[0] == 32 or food[1] == 1 or food[1] == 16):
                 self.dangerFood.append(food)
-            if foodAround >= 3: self.clusteredFood.add(food)
+            if foodAround >= 5: self.clusteredFood.add(food)
             self.foodWithEnv.append((food, wallsAround))
         self.dangerFood = set(self.dangerFood)
         nearbyDangerFood = set()
@@ -125,7 +126,7 @@ class GameTreeAgent(CaptureAgent):
 
         ###My Evaluation###
         myWeight = {'numFood': 1, 'closestFood': 1, 'freeLevel': 0.1,
-                   'closestGhost': -0.5, 'closestFriend': -0.5, 'reverse': -5}
+                   'closestGhost': -0.5, 'closestFriend': -0.5}
         myFeats = Counter()
         myFeats['numFood'] = -len(foods)
 
@@ -214,10 +215,6 @@ class GameTreeAgent(CaptureAgent):
         ###Friend&My Actions###
         index = self.friendIndex if evalToGet == 1 else self.index
         nextIndex = self.ghostIndex if evalToGet == 1 else self.friendIndex
-        # if evalToGet == 1: actions = getLimitedAction(gameState, index)
-        # else:
-        #     actions = gameState.getLegalAction(self.index)
-        #     actions.remove(Directions.STOP)
         actions = getLimitedAction(gameState, index)
         rtn = None
         decision = Directions.STOP
@@ -242,10 +239,13 @@ class GameTreeAgent(CaptureAgent):
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         if pacX >= 32 - self.bornHardLevel * 2 \
                 and self.distancer.getDistance((pacX, pacY), ghostPos):
+            currentClusters = [f for f in self.clusteredFood if f in gameState.getFood().asList()]
             if self.distancer.getDistance((pacX, pacY), self.ghostStart)\
                 < self.distancer.getDistance(ghostPos, self.ghostStart)\
+                and len(currentClusters) > 0\
                 and min([self.distancer.getDistance(gameState.getAgentPosition(self.friendIndex),\
-                        f) for f in self.clusteredFood]) < 5:
+                        f) for f in currentClusters]) < 5:
+
                 lureDist = float('inf')
                 action = Directions.STOP
                 for a in getLimitedAction(gameState, self.index):
