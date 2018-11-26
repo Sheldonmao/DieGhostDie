@@ -472,7 +472,7 @@ class MyAgent(BaseAgent):
         self.detectDanger(gameState)
         #print(self.followPlanFlag)
         #plan
-        if self.followPlanFlag==True:
+        if self.followPlanFlag:
             pacman = gameState.getAgentPosition(self.index)
             if self.plan==[] or pacman==(1,2) or pacman==(1,1):
                 self.plan=self.PlanFunction(gameState)
@@ -483,6 +483,7 @@ class MyAgent(BaseAgent):
             currentAction = self.actionHelper(gameState)
         #print(currentAction)
         return currentAction
+
 
     def actionHelper(self, state):
         #actions = self.getLimitedActions(state, self.index)
@@ -507,12 +508,12 @@ class MyAgent(BaseAgent):
         distance=self.distancer.getDistance(pacman,ghost)
         self.followPlanFlag=False
         if distance<8:
-            if util.flipCoin(distance/8):
+            if util.flipCoin(distance-1/8):
                 self.followPlanFlag=True
         else:
             self.followPlanFlag=True
 
-    #to be continued
+
     def lureModeAction(self,state):
         actions=state.getLegalActions(self.index)
 

@@ -10,7 +10,6 @@ from captureAgents import CaptureAgent
 from staffBot import SimpleStaffBot, TutorBot
 #from myAgent import MyAgent,ReinforcementAgent, TutoredRLAgent
 from my_new_agent import MyAgent
-from planAgent import planAgent
 
 #################
 # Team creation #

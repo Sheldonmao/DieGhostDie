@@ -150,9 +150,13 @@ class MyAgent(CaptureAgent):
             if wallsAround >= 3: self.dangerFood.append(food)
             self.foodWithEnv.append((food, wallsAround))
         self.dangerFood = set(self.dangerFood)
-
         self.dangerRegion=[]
+        #TODO: group format ({foodSet}, region_size, exit)
+        #TODO: safeGroup index 0, region_size = 0, exit = None
+        self.foodGroup = [None]
         for food in self.dangerFood:
+            thisGroup = set()
+            regionSize = 0
             tempPos=food
             regionFlag=True
             action=0
@@ -161,9 +165,20 @@ class MyAgent(CaptureAgent):
                 if len(successors)==1:
                     print(tempPos,action)
                     self.dangerRegion.append(tempPos)
+                    ###group food###
+                    regionSize += 1
+                    x, y = tempPos
+                    if self.foodGrid[x][y]: thisGroup.add(tempPos)
                     tempPos=successors[0][0]
                     action=successors[0][1]
                 else: regionFlag=False
+            self.foodGroup.append((thisGroup, regionSize+1, tempPos))
+        problematicFood = set()
+        for i in range(1, len(self.foodGroup)):
+            for f in self.foodGroup[i][0]: problematicFood.add(f)
+        safeGroup = set([food for food in gameState.getFood().asList() if food not in problematicFood])
+        self.foodGroup[0] = (safeGroup, 0, None)
+
 
         #nearbyDangerFood = set()
         #for food in self.dangerFood:
