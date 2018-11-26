@@ -17,7 +17,7 @@
 from captureAgents import CaptureAgent
 import random, time, util
 from game import Directions, Actions
-from util import Counter
+from util import Counter,PriorityQueue,Queue
 import game
 from util import nearestPoint
 #import numpy as np
@@ -118,9 +118,6 @@ class BaseAgent(CaptureAgent):
         value = sum(feature * weight for feature, weight in zip(features, self.weights))
         return value
 
-class MyAgent(BaseAgent):
-    def toString(self):
-        return "MyAgent"
 
 class ReinforcementAgent(BaseAgent):
 
@@ -207,8 +204,8 @@ class ReinforcementAgent(BaseAgent):
                         neighbour_foods+=1
                     freelist.append(new_pos)
             #futureMoves += 1 + len(s.getLegalActions(self.index))
-        print(freelist,len(freelist))
-        print("neighbour_foods",neighbour_foods)
+        #print(freelist,len(freelist))
+        #print("neighbour_foods",neighbour_foods)
         feats['5*5space'] = len(freelist)/ 13
         feats["2_step_foods"]=neighbour_foods
 
@@ -358,7 +355,6 @@ class ReinforcementAgent(BaseAgent):
             presentFoodNum = len(gameState.getFood().asList())
             foodDecreaseReward = 10 * (lastFoodNum - presentFoodNum)
 
-        # 储存我的四邻域食物情况
         self.lastNeighbor = []
         food = gameState.getFood()
         legalNeighbors = Actions.getLegalNeighbors(pacman, self.walls)
@@ -425,3 +421,167 @@ def actionsWithoutReverse(legalActions, gameState, agentIndex):
     if len(legalActions) > 1 and reverse in legalActions:
         legalActions.remove(reverse)
     return legalActions
+
+
+class MyAgent(BaseAgent):
+    def registerInitialState(self, gameState):
+        BaseAgent.registerInitialState(self, gameState)
+        self.plan=[]
+        self.followPlanFlag=True
+        self.weights = Counter()
+        self.weights['numFood'] = 1
+        self.weights['closestFoodReward'] = 1
+        self.weights['closestGhostPenalty'] = -10
+        self.weights['closestFriendPenalty'] = -1
+        self.features = Counter()
+
+    def getFeatures(self, state):
+        foods = state.getFood().asList()
+        ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        friends = [state.getAgentPosition(pacman) for pacman in state.getPacmanTeamIndices() if pacman != self.index]
+
+        pacman = state.getAgentPosition(self.index)
+
+        closestFood = min(self.distancer.getDistance(pacman, food) for food in foods) + 2.0 \
+            if len(foods) > 0 else 1.0
+        closestGhost = min(self.distancer.getDistance(pacman, ghost) for ghost in ghosts) + 1.0 \
+            if len(ghosts) > 0 else 1.0
+        closestFriend = min(self.distancer.getDistance(pacman, friend) for friend in friends) + 1.0 \
+            if len(friends) > 0 else 1.0
+
+        closestFoodReward = 1.0 / closestFood
+        closestGhostPenalty = 1.0 / (closestGhost ** 2) if closestGhost < 20 else 0
+        closestFriendPenalty = 1.0 / (closestFriend ** 2) if closestFriend < 5 else 0
+
+        numFood = len(foods)
+
+        #features=Counter()
+        self.features['numFood']=-numFood
+        self.features['closestFoodReward']=closestFoodReward
+        self.features['closestGhostPenalty']=closestGhostPenalty
+        self.features['closestFriendPenalty']=closestFriendPenalty
+
+        return self.features
+
+    def evaluationFunction(self,state):
+        self.getFeatures(state)
+        return self.features*self.weights
+
+    def chooseAction(self, gameState):
+        currentAction = self.actionHelper(gameState)
+        self.detectDanger(gameState)
+        #print(self.followPlanFlag)
+        #plan
+        if self.followPlanFlag==True:
+            pacman = gameState.getAgentPosition(self.index)
+            if self.plan==[] or pacman==(1,2) or pacman==(1,1):
+                self.plan=self.PlanFunction(gameState)
+            currentAction=self.plan.pop()
+        ##reflex
+        else:
+            self.plan=[]
+            currentAction = self.actionHelper(gameState)
+        #print(currentAction)
+        return currentAction
+
+    def actionHelper(self, state):
+        #actions = self.getLimitedActions(state, self.index)
+        actions = state.getLegalActions(self.index)
+
+        val = float('-inf')
+        best = None
+        for action in actions:
+            new_state = state.generateSuccessor(self.index, action)
+            new_state_val = self.evaluationFunction(new_state)
+
+            if new_state_val > val:
+                val = new_state_val
+                best = action
+
+        return best
+
+    def detectDanger(self,state):
+        ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        ghost=ghosts[0]
+        pacman = state.getAgentPosition(self.index)
+        distance=self.distancer.getDistance(pacman,ghost)
+        self.followPlanFlag=False
+        if distance<8:
+            if util.flipCoin(distance/8):
+                self.followPlanFlag=True
+        else:
+            self.followPlanFlag=True
+
+    #to be continued
+    def lureModeAction(self,state):
+        actions=state.getLegalActions(self.index)
+
+    def PlanFunction(self, state):
+        foods = state.getFood().asList()
+        ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        friends = [state.getAgentPosition(pacman) for pacman in state.getPacmanTeamIndices() if pacman != self.index]
+        pacman = state.getAgentPosition(self.index)
+
+        #Remove friend's target
+        friendPos=friends[0]
+        foods = state.getFood().asList()
+        numFood = len(foods)
+        friendTargets = [food for food in foods if self.distancer.getDistance(friendPos, food) < 7]
+        targetsNearTargets = []
+        for f in friendTargets:
+            targetsNearTargets.extend([food for food in foods if self.distancer.getDistance(f, food) < 4])
+        friendTargets.extend(targetsNearTargets)
+        friendTargets = set(friendTargets)
+        if numFood - len(friendTargets) > 3:
+            for f in friendTargets:
+                if f in foods: foods.remove(f)
+
+
+        closestFood=pacman
+        if len(foods) > 0:
+            closestFoodDist = min(self.distancer.getDistance(pacman, food) for food in foods)
+            closestFoods=[food for food in foods if self.distancer.getDistance(pacman,food)==closestFoodDist]
+            closestFood=random.choice(closestFoods)
+        ##A* Search
+        return self.aStarSearch(state,pacman,closestFood)
+
+    def aStarSearch(self,state, pos,des):
+        """Search the node that has the lowest combined cost and heuristic first."""
+        "*** YOUR CODE HERE ***"
+        fringe=util.PriorityQueue()
+        fringe.push([pos,[],0],0)
+        closed_set=[]
+        #print('pos',pos,' des',des)
+        while not fringe.isEmpty():
+            #print('now the fringe have',len(fringe.heap))
+            #print('now the closed set is',closed_set)
+            nodePos,nodeActionList,nodeCost=fringe.pop()
+            #print("poped pos",nodePos)
+            if nodePos==des:
+                return nodeActionList
+            if not nodePos in closed_set:
+                closed_set.append(nodePos)
+                for (successorPos, action, stepCost) in getSearchSuccessors(nodePos,state):
+                    nextPos=successorPos
+                    nextActionList=nodeActionList.copy()
+                    nextActionList.insert(0,action)
+                    #nextActionList.append(action)
+                    nextCost=nodeCost+stepCost
+                    fringe.push([nextPos,nextActionList,nextCost],nextCost+heuristic(nextPos,des))
+        else: return []
+
+
+def getSearchSuccessors(pos,state):
+    successors=[]
+    for action in [Directions.NORTH,Directions.SOUTH,Directions.EAST,Directions.WEST]:
+        posX,posY=pos
+        if action==Directions.NORTH: posY+=1
+        if action==Directions.SOUTH: posY-=1
+        if action==Directions.EAST: posX+=1
+        if action==Directions.WEST: posX-=1
+        if posY>0 and posY<18 and posX>0 and posX<34:
+            if not state.hasWall(posX,posY):
+                successors.append(((posX,posY),action,1))
+    return successors
+def heuristic(pos,des):
+    return util.manhattanDistance(pos,des)

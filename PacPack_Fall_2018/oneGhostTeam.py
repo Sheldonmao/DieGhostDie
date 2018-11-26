@@ -11,7 +11,7 @@ import distanceCalculator
 import random, time, util, sys
 from game import Directions
 import game
-from util import nearestPoint 
+from util import nearestPoint
 
 #################
 # Team creation #
@@ -60,6 +60,7 @@ class GhostReflexAgent(CaptureAgent):
     actions = gameState.getLegalActions(self.index)
 
     if random.random() < RANDOM_ACTION_PROB:
+      #print("ghost random")
       if Directions.STOP in actions:
         actions.remove(Directions.STOP)
 
