@@ -47,9 +47,8 @@ class GameTreeAgent(CaptureAgent):
                         break
             if isWall: self.bornHardLevel += 1
         self.dangerFood = list()
-        self.foodWithEnv = list()
 
-        for food in gameState.getFood().asList():
+        for food in self.foodGrid.asList():
             wallsAround = 0
             for offset in dir:
                 x = food[0] + offset[0]
@@ -57,11 +56,8 @@ class GameTreeAgent(CaptureAgent):
                 if self.walls[x][y]:
                     wallsAround += 1
             if wallsAround >= 3: self.dangerFood.append(food)
-            self.foodWithEnv.append((food, wallsAround))
         self.dangerFood = set(self.dangerFood)
         self.dangerRegion = []
-        # TODO: group format ({foodSet}, region_size, exit)
-        # TODO: safeGroup index 0, region_size = 0, exit = None
         self.foodGroup = [None]
         for food in self.dangerFood:
             thisGroup = set()
@@ -71,7 +67,7 @@ class GameTreeAgent(CaptureAgent):
             action = 0
             while regionFlag:
                 successors = self.getSearchSuccessorsWithoutReverse(tempPos, gameState, action)
-                if len(successors) == 1: 
+                if len(successors) == 1:
                     print(tempPos, action)
                     self.dangerRegion.append(tempPos)
                     ###group food###
@@ -233,6 +229,11 @@ class GameTreeAgent(CaptureAgent):
                         return self.terminal(nextState, self.ghostIndex, layer)
             else:
                 evalToGet = 2
+                actions = getLimitedAction(state, self.ghostIndex)
+                if random.random() < RANDOM_ACTION_PROB:
+                    action = random.choice(actions)
+                    nextState = state.generateSuccessor(self.ghostIndex, action)
+                    return self.terminal(nextState, self.index, layer-1, action)
             return self.maxValue(state, evalToGet, layer, saveAction)
 
     def maxValue(self, gameState, evalToGet, layer, saveAction):
@@ -340,38 +341,26 @@ class GameTreeAgent(CaptureAgent):
 
     ###Helper Functions###
 
-    def foodEval(self, gameState, food, ghost, friend):
-        walls = gameState.getWalls()
-        foods = gameState.getFood()
-        foodX, foodY = food
-        ghostAround = False
-        cornerAround = 0
-        foodAround = 0
-        for offset in dir:
-            dx, dy = offset
-            if walls[dx + foodX][dy + foodY]:
-                cornerAround += 1
-            if foods[dx + foodX][dy + foodY]:
-                foodAround += 1
-        if cornerAround < 6: cornerAround = 0
-        ghostDist = self.distancer.getDistance(food, ghost)
-        if ghostDist < 4:
-            ghostAround = True
-        if ghostAround and cornerAround != 0:
-            if cornerAround == 6:
-                return 0.6 + foodAround * 0.05
-            elif cornerAround == 7:
-                return 0.3 + foodAround * 0.05
-            elif cornerAround > 7:
-                return 0
-        elif cornerAround != 0:
-            if cornerAround == 6:
-                return 0.9 + foodAround * 0.1
-            elif cornerAround == 7:
-                return 0.6 + foodAround * 0.1
-            elif cornerAround > 7:
-                return 0.5 + foodAround * 0.05
-        return 1
+    def foodEval(self, gameState, food):
+        for group in range(len(self.foodGroup)):
+            if food in self.foodGroup[group][0]:
+                return self.foodEvalGroup(gameState, group)
+
+    def foodEvalGroup(self, gameState, group):
+        ########################################################################
+        #    If food is too dangerous to eat (need to remove),                 #
+        #    return -1,                                                        #
+        #    else consider the distance(exit, ghost) and region_size / #food.  #
+        ########################################################################
+        if group == 0: return 1
+        foodSet, regionSize, exit = self.foodGroup[group]
+        ghostDist = self.distancer.getDistance(gameState.getAgentPosition(
+            gameState.getGhostTeamIndices()[0]), exit)
+        if ghostDist < 1.5 * regionSize: return -1
+        ghostFactor = min(ghostDist, 3 * regionSize, 20) / min(3 * regionSize, 20)
+        smooth = 18 #FIXME: tune it
+        worth = (len(foodSet) + smooth) / (regionSize * 2 + smooth)
+        return ghostFactor * smooth
 
     def getNewPrediction(self, a):
         self.friendPrediction[0] = self.friendPrediction[1]
