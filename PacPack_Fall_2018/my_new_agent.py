@@ -20,6 +20,7 @@ from game import Directions, Actions
 from util import Counter,PriorityQueue,Queue
 import game
 from util import nearestPoint
+from game import Grid
 #import numpy as np
 
 dir = [(-1,0),(1,0),(0,-1),(0,1)]
@@ -61,7 +62,7 @@ class BaseAgent(CaptureAgent):
         """
         Picks among actions randomly.
         """
-        print(gameState.data.time)
+        #print(gameState.data.time)
         print(len(gameState.getFood().asList()))
         teammateActions = self.receivedBroadcast
         # Process your teammate's broadcast!
@@ -128,14 +129,18 @@ class MyAgent(CaptureAgent):
         CaptureAgent.registerInitialState(self, gameState)
         self.start = gameState.getAgentPosition(self.index)
         self.plan=[]
+        self.forceFlag=False
         self.followPlanFlag=True
+        self.replanFlag=True
         self.weights = Counter()
         self.weights['numFood'] = 1
         self.weights['closestFoodReward'] = 1
-        self.weights['closestGhostPenalty'] = -10
-        self.weights['closestFriendPenalty'] = -1
+        self.weights['closestGhostPenalty'] = -100
+        self.weights['closestFriendPenalty'] = -30
+        self.weights['dangerGridPenalty']=-10000
         self.features = Counter()
 
+        self.targetFood=(0,0)
         self.walls = gameState.getWalls()
         self.foodGrid = gameState.getFood()
         self.dangerFood = list()
@@ -151,36 +156,66 @@ class MyAgent(CaptureAgent):
             self.foodWithEnv.append((food, wallsAround))
         self.dangerFood = set(self.dangerFood)
 
-        self.dangerRegion=[]
-        for food in self.dangerFood:
+        [self.dangerFoodRegion,self.dangerFoodRegionList,self.dangerFoodRegionActionList]=self.regionGrowing(self.dangerFood,gameState)
+
+        self.exitGrid=Grid(self.foodGrid.width, self.foodGrid.height)
+        for regionlist in self.dangerFoodRegionList:
+            pos=regionlist[-1]
+            self.exitGrid[pos[0]][pos[1]]=True
+            #self.debugDraw(pos,[0,0,1])
+
+        self.deadEnds=[]
+        for i in range(1,self.foodGrid.width-1):
+            for j in range(1,self.foodGrid.height-1):
+                if not self.walls[i][j]:
+                    wallsAround = 0
+                    for offset in dir:
+                        x = i + offset[0]
+                        y = j + offset[1]
+                        if self.walls[x][y]:
+                            wallsAround += 1
+                    if wallsAround >= 3:
+                        self.deadEnds.append((i,j))
+                        #self.debugDraw((i,j),[1,0,0])
+        [self.dangerRegion,self.dangerRegionList,self.dangerRegionActionList]=self.regionGrowing(self.deadEnds,gameState)
+        self.dangerGrid = Grid(self.foodGrid.width, self.foodGrid.height)
+        for pos in self.dangerRegion:
+            self.dangerGrid[pos[0]][pos[1]]=True
+            self.debugDraw(pos,[0,1,0])
+
+        # for food in self.dangerFood:
+        #     self.debugDraw(food, [0,0,1])
+        # for rigon in self.dangerFoodRegion:
+        #     self.debugDraw(rigon, [0,1,0])
+        # for region in self.dangerFoodRegionList[0]:
+        #     self.debugDraw(region,[1,0,0])
+
+        self.friendIsStupid = True
+
+    def regionGrowing(self,seeds,state):
+        Region=[]
+        RegionList=[]
+        ActionList=[]
+        for food in seeds:
+            templist=[]
+            tempActionList=[]
             tempPos=food
             regionFlag=True
             action=0
             while regionFlag:
-                successors=self.getSearchSuccessorsWithoutReverse(tempPos,gameState,action)
+                successors=self.getSearchSuccessorsWithoutReverse(tempPos,state,action)
                 if len(successors)==1:
-                    print(tempPos,action)
-                    self.dangerRegion.append(tempPos)
+                    #print(tempPos,action)
+                    Region.append(tempPos)
+                    templist.append(tempPos)
                     tempPos=successors[0][0]
                     action=successors[0][1]
-                else: regionFlag=False
-
-        #nearbyDangerFood = set()
-        #for food in self.dangerFood:
-        #    for offset in dir:
-        #        x = offset[0] + food[0]
-        #        y = offset[1] + food[1]
-        #        if self.foodGrid[x][y]:
-        #            nearbyDangerFood.add((x, y))
-        #self.dangerFood = list(self.dangerFood)
-        #self.dangerFood.extend(list(nearbyDangerFood))
-        #self.dangerFood = set(self.dangerFood)
-        for food in self.dangerFood:
-            self.debugDraw(food, [0,0,1])
-        for rigon in self.dangerRegion:
-            self.debugDraw(rigon, [0,1,0])
-
-        self.friendIsStupid = True
+                    tempActionList.append(action)
+                else:
+                    regionFlag=False
+                    RegionList.append(templist)
+                    ActionList.append(tempActionList)
+        return [Region,RegionList,ActionList]
 
     def getFeatures(self, state):
         foods = state.getFood().asList()
@@ -202,11 +237,16 @@ class MyAgent(CaptureAgent):
 
         numFood = len(foods)
 
+        dangergrid=0
+        if self.dangerGrid[pacman[0]][pacman[1]]==True:
+            dangergrid=1
+
         #features=Counter()
         self.features['numFood']=-numFood
         self.features['closestFoodReward']=closestFoodReward
         self.features['closestGhostPenalty']=closestGhostPenalty
         self.features['closestFriendPenalty']=closestFriendPenalty
+        self.features['dangerGridPenalty']=dangergrid
 
         return self.features
 
@@ -214,22 +254,77 @@ class MyAgent(CaptureAgent):
         self.getFeatures(state)
         return self.features*self.weights
 
+    def packPlan(self,state):
+        pacman=state.getAgentPosition(self.index)
+        if self.exitGrid[pacman[0]][pacman[1]]==True:
+            self.exitGrid[pacman[0]][pacman[1]]=False
+            self.plan=[]
+            index=0
+            for i in range(len(self.dangerFoodRegionList)):
+                if pacman==self.dangerFoodRegionList[i][-1]:
+                    index=i
+                    for j in range(len(self.dangerFoodRegionList[i])-1):
+                        print('i',i,'j',j,'lenActionList',len(self.dangerFoodRegionActionList[i]))
+                        print(self.dangerFoodRegionActionList[i][j])
+                        self.plan.append(Directions.REVERSE[self.dangerFoodRegionActionList[i][j]])
+                        pos=self.dangerFoodRegionList[i][j]
+            print("now plan",self.plan)
+            return True
+        return self.forceFlag
+
+    def updateEatenPack(self,state):
+        pacman=state.getAgentPosition(self.index)
+        friends = [state.getAgentPosition(pacman) for pacman in state.getPacmanTeamIndices() if pacman != self.index]
+        friend=friends[0]
+        positions=[pacman,friend]
+        tempRegionList=[]
+        tempActionList=[]
+        for pos in positions:
+            index=-1
+            if pos in self.dangerFood:
+                print("goal")
+                for i in range(len(self.dangerFoodRegionList)):
+                    if pos==self.dangerFoodRegionList[i][0]:
+                        index=i
+                    else:
+                        tempRegionList.append(self.dangerFoodRegionList[i])
+                        tempActionList.append(self.dangerFoodRegionActionList[i])
+            if index!=-1:
+                print("index:",index)
+                for pos in self.dangerFoodRegionList[index]:
+                    self.debugDraw(pos,[1,0,0])
+                self.dangerFoodRegionList=tempRegionList
+                self.dangerFoodRegionActionList=tempActionList
+                for i in range(len(self.dangerFoodRegionList)):
+                    if len(self.dangerFoodRegionList[i])!=len(self.dangerFoodRegionActionList[i]):
+                        print("serious Error")
+                if pos==pacman:
+                    self.forceFlag=False
+
     def chooseAction(self, gameState):
         currentAction = self.actionHelper(gameState)
+        self.updateEatenPack(gameState)
+        self.forceFlag=self.packPlan(gameState)
         self.detectDanger(gameState)
-        if not self.followPlanFlag:
-            print("agent reflex")
+        #if not self.followPlanFlag:
+        #    print("agent reflex")
         #print(self.followPlanFlag)
         #plan
-        if self.followPlanFlag==True:
+        if self.followPlanFlag==True or self.forceFlag==True:
+            if self.replanFlag==True and self.forceFlag==False:
+                self.plan=[]
+                self.replanFlag=False
             pacman = gameState.getAgentPosition(self.index)
             if self.plan==[] or pacman==self.start:
                 self.plan=self.PlanFunction(gameState)
                 #print("plan:",self.plan)
             if len(self.plan)!=0:
+                #print("current plan",self.plan)
                 currentAction=self.plan.pop()
+                print("current PLAN Action",currentAction,'forceFlag',self.forceFlag)
         ####reflex
         else:
+            print("now Reflex",self.forceFlag)
             self.plan=[]
             currentAction = self.actionHelper(gameState)
         #print(currentAction)
@@ -237,6 +332,17 @@ class MyAgent(CaptureAgent):
 
     def actionHelper(self, state):
         #actions = self.getLimitedActions(state, self.index)
+        pacman=state.getAgentPosition(self.index)
+        ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        ghost=ghosts[0]
+        ghostDist=util.manhattanDistance(pacman,ghost)
+        if self.dangerGrid[pacman[0]][pacman[1]]==True and ghostDist>=2:
+            index=(0,0)
+            for i in range(len(self.dangerRegionList)):
+                for j in range(len(self.dangerRegionList[i])):
+                    if pacman==self.dangerRegionList[i][j]:
+                        index=(i,j)
+            return self.dangerRegionActionList[index[0]][index[1]]
         actions = state.getLegalActions(self.index)
         val = float('-inf')
         best = None
@@ -248,17 +354,30 @@ class MyAgent(CaptureAgent):
                 best = action
         return best
 
+    #be careful only neighour points can do this
+    def chooseNeighbourActioin(self,pos,des):
+        xdif=des[0]-pos[0]
+        ydif=des[1]-pos[1]
+        if xdif==-1:    return Directions.WEST
+        if xdif==1:     return Directions.EAST
+        if ydif==-1:    return Directions.SOUTH
+        if ydif==1:     return Directions.NORTH
+
     def detectDanger(self,state):
         ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
         ghost=ghosts[0]
         pacman = state.getAgentPosition(self.index)
         distance=self.distancer.getDistance(pacman,ghost)
         self.followPlanFlag=False
-        if distance<8:
-            if util.flipCoin(distance/8):
+        if distance<5:
+            if util.flipCoin(distance/5):
                 self.followPlanFlag=True
         else:
             self.followPlanFlag=True
+
+        foodGrid=state.getFood()
+        if foodGrid[self.targetFood[0]][self.targetFood[1]]==False:
+            self.replanFlag=True
 
     #to be continued
     #def lureModeAction(self,state):
@@ -285,14 +404,22 @@ class MyAgent(CaptureAgent):
             for f in friendTargets:
                 if f in foods: foods.remove(f)
 
+        if util.flipCoin(1-state.data.time/1200):
+            removelist=[]
+            for food in foods:
+                if food[0]<17:
+                    removelist.append(food)
+            for food in removelist:
+                foods.remove(food)
 
-        closestFood=pacman
+        self.targetFood=pacman
         if len(foods) > 0:
             closestFoodDist = min(self.distancer.getDistance(pacman, food) for food in foods)
             closestFoods=[food for food in foods if self.distancer.getDistance(pacman,food)==closestFoodDist]
-            closestFood=random.choice(closestFoods)
+            self.targetFood=random.choice(closestFoods)
+        #print("target",self.targetFood,pacman)
         ##A* Search
-        return self.aStarSearch(state,pacman,closestFood,ghostPos)
+        return self.aStarSearch(state,pacman,self.targetFood,ghostPos)
 
     def aStarSearch(self,state, pos,des,ghost):
         """Search the node that has the lowest combined cost and heuristic first."""
