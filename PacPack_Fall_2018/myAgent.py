@@ -512,6 +512,18 @@ class MyAgent(BaseAgent):
         else:
             self.followPlanFlag=True
 
+    def replanDetector(self,state):
+        ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        ghost=ghosts[0]
+        pacman = state.getAgentPosition(self.index)
+        distance=self.distancer.getDistance(pacman,ghost)
+        self.followPlanFlag=False
+        if distance<8:
+            if util.flipCoin(distance/8):
+                self.followPlanFlag=True
+        else:
+            self.followPlanFlag=True
+
     #to be continued
     def lureModeAction(self,state):
         actions=state.getLegalActions(self.index)
