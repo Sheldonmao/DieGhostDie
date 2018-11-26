@@ -179,7 +179,6 @@ class MyAgent(CaptureAgent):
         safeGroup = set([food for food in gameState.getFood().asList() if food not in problematicFood])
         self.foodGroup[0] = (safeGroup, 0, None)
 
-
         #nearbyDangerFood = set()
         #for food in self.dangerFood:
         #    for offset in dir:
@@ -192,8 +191,8 @@ class MyAgent(CaptureAgent):
         #self.dangerFood = set(self.dangerFood)
         for food in self.dangerFood:
             self.debugDraw(food, [0,0,1])
-        for rigon in self.dangerRegion:
-            self.debugDraw(rigon, [0,1,0])
+        for region in self.dangerRegion:
+            if region not in self.dangerFood: self.debugDraw(region, [0,1,0])
 
         self.friendIsStupid = True
 
@@ -372,6 +371,28 @@ class MyAgent(CaptureAgent):
 
     def heuristic(self,pos,des):
         return util.manhattanDistance(pos,des)
+
+    def foodEval(self, gameState, food):
+        for group in range(len(self.foodGroup)):
+            if food in self.foodGroup[group][0]:
+                return self.foodEvalGroup(gameState, group)
+
+    def foodEvalGroup(self, gameState, group):
+        ########################################################################
+        #    If food is too dangerous to eat (need to remove),                 #
+        #    return -1,                                                        #
+        #    else consider the distance(exit, ghost) and region_size / #food.  #
+        ########################################################################
+        if group == 0: return 1
+        foodSet, regionSize, exit = self.foodGroup[group]
+        ghostDist = self.distancer.getDistance(gameState.getAgentPosition(
+            gameState.getGhostTeamIndices()[0]), exit)
+        if ghostDist < 1.5 * regionSize: return -1
+        ghostFactor = min(ghostDist, 3 * regionSize, 20) / min(3 * regionSize, 20)
+        smooth = 18 #FIXME: tune it
+        worth = (len(foodSet) + smooth) / (regionSize * 2 + smooth)
+        return ghostFactor * smooth
+
 
 def actionsWithoutStop(legalActions):
     """
