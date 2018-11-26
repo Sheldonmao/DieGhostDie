@@ -62,7 +62,7 @@ class GameTreeAgent(CaptureAgent):
                 if foodGrid[x][y]:
                     foodAround += 1
             if wallsAround >= 5: self.dangerFood.append(food)
-            elif wallsAround >= 3 and (food[0] == 1 or food[0] == 32 or food[1] == 1 or food[1] == 16):
+            elif wallsAround > 3 and (food[0] == 1 or food[0] == 32 or food[1] == 1 or food[1] == 16):
                 self.dangerFood.append(food)
             if foodAround >= 5: self.clusteredFood.add(food)
             self.foodWithEnv.append((food, wallsAround))
@@ -88,7 +88,6 @@ class GameTreeAgent(CaptureAgent):
         self.toBroadcast = []
 
     def evaluation(self, gameState, ghostAction):
-        #TODO: evaluate smarter staff bot
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         friendPos = gameState.getAgentPosition(self.friendIndex)
         myPos = gameState.getAgentPosition(self.index)
@@ -202,7 +201,6 @@ class GameTreeAgent(CaptureAgent):
         return myEval, friendEval, ghostEval
 
     def terminal(self, state, index, layer, action=None, saveAction=False):
-        #TODO: fix with received broadcast
         if layer == 0:
             return self.evaluation(state, action)
         else:
@@ -276,7 +274,7 @@ class GameTreeAgent(CaptureAgent):
         pacX, pacY = gameState.getAgentPosition(self.index)
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         if pacX >= 32 - self.bornHardLevel * 2 \
-                and self.distancer.getDistance((pacX, pacY), ghostPos):
+                and self.distancer.getDistance((pacX, pacY), ghostPos) < 7:
             currentClusters = [f for f in self.clusteredFood if f in gameState.getFood().asList()]
             if self.distancer.getDistance((pacX, pacY), self.ghostStart)\
                 < self.distancer.getDistance(ghostPos, self.ghostStart)\
