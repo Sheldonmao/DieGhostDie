@@ -166,6 +166,7 @@ class MyAgent(CaptureAgent):
             #self.debugDraw(pos,[0,0,1])
 
         self.deadEnds=[]
+        self.narrows=[]
         for i in range(1,self.foodGrid.width-1):
             for j in range(1,self.foodGrid.height-1):
                 if not self.walls[i][j]:
@@ -175,6 +176,8 @@ class MyAgent(CaptureAgent):
                         y = j + offset[1]
                         if self.walls[x][y]:
                             wallsAround += 1
+                    if wallsAround==2:
+                        self.narrows.append((i,j))
                     if wallsAround >= 3:
                         self.deadEnds.append((i,j))
                         #self.debugDraw((i,j),[1,0,0])
@@ -192,7 +195,7 @@ class MyAgent(CaptureAgent):
             for j in range(i+1,len(self.dangerExitList)):
                 pos=self.dangerExitList[i]
                 des=self.dangerExitList[j]
-                if util.manhattanDistance(pos,des)<=2:
+                if self.distancer.getDistance(pos,des)<=2:
                     middle=(int((pos[0]+des[0])/2),int((pos[1]+des[1])/2))
                     if self.walls[middle[0]][middle[1]]==True:
                         middle=(middle[0]+1,middle[1]+1)
@@ -200,12 +203,14 @@ class MyAgent(CaptureAgent):
                         self.debugDraw(middle,[0,0,1])
                         self.subDangerRegion.append(middle)
 
-        # for food in self.dangerFood:
+        #for food in self.dangerFood:
         #     self.debugDraw(food, [0,0,1])
         # for rigon in self.dangerFoodRegion:
         #     self.debugDraw(rigon, [0,1,0])
         # for region in self.dangerFoodRegionList[0]:
         #     self.debugDraw(region,[1,0,0])
+        self.closedTargets=[]
+        self.hesitate=0
         self.friendIsStupid = True
 
     def regionGrowing(self,seeds,state):
@@ -279,8 +284,9 @@ class MyAgent(CaptureAgent):
             for i in range(len(self.dangerFoodRegionList)):
                 if pacman==self.dangerFoodRegionList[i][-1]:
                     self.plan=self.PosList2ActionList(self.dangerFoodRegionList[i])
-            print("now plan",self.plan)
-            return True
+            if len(self.plan)!=0:
+                #print("pack plan",self.plan)
+                return True
         return self.forceFlag
 
     def updateEatenPack(self,state):
@@ -291,54 +297,73 @@ class MyAgent(CaptureAgent):
         for pos in positions:
             index=-1
             if pos in self.dangerFood:
-                print("goal")
                 for i in range(len(self.dangerFoodRegionList)):
                     if pos==self.dangerFoodRegionList[i][0]:
                         index=i
             if index!=-1:
-                print("index:",index)
-                for pos in self.dangerFoodRegionList[index]:
-                    self.debugDraw(pos,[1,0,0])
+                for temppos in self.dangerFoodRegionList[index]:
+                    self.debugDraw(temppos,[1,0,0])
                 self.dangerFoodRegionList.remove(self.dangerFoodRegionList[index])
                 if pos==pacman:
                     self.forceFlag=False
+                    self.debugDraw(pos,[1,1,1])
+                    print("goal",pos,self.forceFlag)
 
     def chooseAction(self, gameState):
         currentAction = self.actionHelper(gameState)
         self.updateEatenPack(gameState)
         self.forceFlag=self.packPlan(gameState)
         self.detectDanger(gameState)
-        if not self.followPlanFlag:
-            print("agent reflex flag")
-        computePlanFlag=False
-        #print(self.followPlanFlag)
+        computeFlag=False
+        #if not self.followPlanFlag:
+        #    print("not follow plan Flag",self.forceFlag)
         #plan
         if self.followPlanFlag==True or self.forceFlag==True:
-            if self.replanFlag:
-                print("now replan")
             if self.replanFlag==True and self.forceFlag==False:
                 self.plan=[]
                 self.replanFlag=False
             pacman = gameState.getAgentPosition(self.index)
             if self.plan==[] or pacman==self.start:
                 self.plan=self.PlanFunction(gameState)
-                computePlanFlag=True
-                print("plan:",self.plan)
-            if computePlanFlag==False:
-                self.plan=self.PlanFunction(gameState)
+
+                #draw plan
+                nextPos=pacman
+                b=random.random()
+                for action in reversed(self.plan):
+                    nextPos=self.stepAction(nextPos,action)
+                    self.debugDraw(nextPos,[0.5,0.5,b])
+
+                computeFlag=True
+            if computeFlag==False:
+                planB=self.PlanFunction(gameState)
+                if len(planB)< len(self.plan)-self.hesitate*5:
+                    self.hesitate+=1
+                    if self.hesitate==10:
+                        self.hesitate=0
+                    self.plan=planB
+                    nextPos=pacman
+                    b=random.random()
+                    for action in reversed(self.plan):
+                        nextPos=self.stepAction(nextPos,action)
+                        self.debugDraw(nextPos,[0.5,0.5,b])
+
             if len(self.plan)!=0:
-                #print("current plan",self.plan)
                 currentAction=self.plan.pop()
-                if not self.followPlanFlag:
-                    print("plan",self.plan,'current action',currentAction)
-                #print("current PLAN Action",currentAction,'forceFlag',self.forceFlag)
+                self.debugDraw(pacman,[0,0,0])
         ####reflex
         else:
-            print("now Reflex",self.forceFlag)
+            print("reflex")
             self.plan=[]
             currentAction = self.actionHelper(gameState)
         #print(currentAction)
         return currentAction
+
+    def stepAction(self,pos,action):
+        x,y=pos
+        if action==Directions.NORTH: return (x,y+1)
+        if action==Directions.SOUTH: return (x,y-1)
+        if action==Directions.EAST: return (x+1,y)
+        if action==Directions.WEST: return (x-1,y)
 
     def actionHelper(self, state):
         #actions = self.getLimitedActions(state, self.index)
@@ -433,6 +458,12 @@ class MyAgent(CaptureAgent):
             for f in ghostTargets:
                 if f in foods: foods.remove(f)
 
+        print("len of closed targets",len(self.closedTargets))
+        for target in self.closedTargets:
+            if target in foods:
+                foods.remove(target)
+        dist=max(2-len(self.closedTargets),0)
+        #### tends to right
         # if util.flipCoin(1-state.data.time/1200):
         #     removelist=[]
         #     for food in foods:
@@ -448,9 +479,10 @@ class MyAgent(CaptureAgent):
             self.targetFood=random.choice(closestFoods)
         #print("target",self.targetFood,pacman)
         ##A* Search
-        return self.aStarSearch(state,pacman,self.targetFood,ghostPos)
+        return self.aStarSearch(state,pacman,self.targetFood,ghostPos,dist)
 
-    def aStarSearch(self,state, pos,des,ghost):
+
+    def aStarSearch(self,state, pos,des,ghost,dist=2):
         """Search the node that has the lowest combined cost and heuristic first."""
         "*** YOUR CODE HERE ***"
         fringe=util.PriorityQueue()
@@ -463,10 +495,11 @@ class MyAgent(CaptureAgent):
             nodePos,nodeActionList,nodeCost=fringe.pop()
             #print("poped pos",nodePos)
             if nodePos==des:
+                self.closedTargets=[]
                 return nodeActionList
             if not nodePos in closed_set:
                 closed_set.append(nodePos)
-                for (successorPos, action, stepCost) in self.getSearchSuccessors(nodePos,state,ghost,True):
+                for (successorPos, action, stepCost) in self.getSearchSuccessors(nodePos,state,ghost,True,dist):
                     nextPos=successorPos
                     #nextActionList=nodeActionList.copy()
                     nextActionList=[]
@@ -477,9 +510,11 @@ class MyAgent(CaptureAgent):
                     #nextActionList.append(action)
                     nextCost=nodeCost+stepCost
                     fringe.push([nextPos,nextActionList,nextCost],nextCost+self.heuristic(nextPos,des))
-        else: return []
+        else:
+            self.closedTargets.append(des)
+            return []
 
-    def getSearchSuccessors(self,pos,state,ghost,ghostFlag=False):
+    def getSearchSuccessors(self,pos,state,ghost,ghostFlag=False,dist=2):
         successors=[]
         for action in [Directions.NORTH,Directions.SOUTH,Directions.EAST,Directions.WEST]:
             posX,posY=pos
@@ -491,7 +526,7 @@ class MyAgent(CaptureAgent):
                 if not state.hasWall(posX,posY):
                     if not ghostFlag:
                         successors.append(((posX,posY),action,1))
-                    elif util.manhattanDistance((posX,posY),ghost)>2:
+                    elif util.manhattanDistance((posX,posY),ghost)>=dist:
                         successors.append(((posX,posY),action,1))
         return successors
 
