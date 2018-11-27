@@ -49,6 +49,7 @@ class GameTreeAgent(CaptureAgent):
         self.dangerFood = list()
 
         for food in self.foodGrid.asList():
+            if food[0] < 12: continue
             wallsAround = 0
             for offset in dir:
                 x = food[0] + offset[0]
@@ -78,12 +79,18 @@ class GameTreeAgent(CaptureAgent):
                     action = successors[0][1]
                 else:
                     regionFlag = False
-            self.foodGroup.append((thisGroup, regionSize + 1, tempPos))
+            self.foodGroup.append([thisGroup, regionSize + 1, tempPos])
         problematicFood = set()
         for i in range(1, len(self.foodGroup)):
             for f in self.foodGroup[i][0]: problematicFood.add(f)
         safeGroup = set([food for food in gameState.getFood().asList() if food not in problematicFood])
-        self.foodGroup[0] = (safeGroup, 0, None)
+        self.foodGroup[0] = [safeGroup, 0, None]
+        ###check###
+        for group in self.foodGroup:
+            if not group[2]:
+                for f in group[0]: self.debugDraw(f, [0,1,0])
+            else:
+                for f in group[0]: self.debugDraw(f, [1,1,0])
 
         ###Atributes for which evaluation to use for friend###
         self.friendIsStupid = False
@@ -168,36 +175,49 @@ class GameTreeAgent(CaptureAgent):
         myFeats['numFood'] = -len(foods)
 
         # Remove friend's target
-        friendTargets = [food for food in foods if self.distancer.getDistance(friendPos, food) < 7]
-        targetsNearTargets = []
-        for f in friendTargets:
-            targetsNearTargets.extend([food for food in foods if self.distancer.getDistance(f, food) < 4])
-        friendTargets.extend(targetsNearTargets)
-        friendTargets = set(friendTargets)
-        if -myFeats['numFood'] - len(friendTargets) > 3:
-            for f in friendTargets:
-                if f in foods: foods.remove(f)
+        friendTargets = [(group, self.distancer.getDistance(friendPos, group[2]))\
+                         for group in self.foodGroup if group[2] and len(group[0]) > 0\
+                         and self.distancer.getDistance(friendPos, group[2]) < 5]
+        numTargets = sum([len(ft[0][0]) for ft in friendTargets])
+        if -myFeats['numFood'] - numTargets > 3:
+            for ft in friendTargets:
+                for food in ft[0][0]:
+                    if food in foods:
+                        self.debugDraw(food, [1,1,1])
+                        foods.remove(food)
+        # nearestFriendTarget = min(friendTargets, key=lambda x : x[1])[0] if len(friendTargets) != 0 else []
+        # if -myFeats['numFood'] - len(nearestFriendTarget) > 3:
+        #     for f in nearestFriendTarget:
+        #         if f in foods:
+        #             foods.remove(f)
+                    #self.debugDraw(f, [1,1,1])
 
         # Remove really dangerous food
         if -myFeats['numFood'] > 10:
-            for f in self.dangerFood:
-                if f in foods and self.distancer.getDistance(ghostPos, f) < 8:
-                    foods.remove(f)
-        if len(foods) == 0:
-            myFeats['closestFood'] = 30
+            foodWithEval = [(food, self.foodEval(gameState, food)) for food in foods]
+            dangerousSet = set()
+            for f in foodWithEval:
+                if f[1] == -1:
+                    dangerousSet.add(f)
+            for f in dangerousSet:
+                foodWithEval.remove(f)
+                self.debugDraw(f[0], [1,0,0])
+            if len(foodWithEval) == 0:
+                myFeats['closestFood'] = 30
+            else:
+                closestFoodDist = self.distancer.getDistance(myPos, foodWithEval[0][0]) / foodWithEval[0][1]
+                theFood = foods[0][0]
+                for food, co in foodWithEval:
+                    newDist = self.distancer.getDistance(myPos, food) / co
+                    if newDist < closestFoodDist:
+                        closestFoodDist = newDist
+                        theFood = food
+                closestFood = closestFoodDist + 2.0 if len(food) > 0 else 1.0
+                myFeats['closestFood'] = 3 / closestFood
         else:
-            closestFoodDist = self.distancer.getDistance(myPos, foods[0])
-            theFood = foods[0]
-            for food in foods:
-                newDist = self.distancer.getDistance(myPos, food)
-                if newDist < closestFoodDist:
-                    closestFoodDist = newDist
-                    theFood = food
-            coefficient = self.foodEval(gameState, food, ghostPos, friendPos)
-            closestFood = closestFoodDist + 2.0 if len(food) > 0 else 1.0
-            myFeats['closestFood'] = 3 * coefficient / closestFood
-        if myFeats['closestFood'] == 0: myFeats['numFood'] = -60
-        myFeats['closestGhost'] = 1.0 / (ghostToMe ** 2) if ghostToMe < 20 else 0
+            closestFoodDist = min([self.distancer.getDistance(myPos, f) for f in foods])
+            myFeats['closestFood'] = 3 / closestFoodDist
+        myFeats['closestGhost'] = self.bornHardLevel*0.5 + 1 / (ghostToMe ** 2) if ghostToMe < 20 else 0
         myFeats['closestFriend'] = 1.0 / ((friendToMe + 0.01) ** 2) if friendToMe < 5 else 0
 
         if myFeats['closestGhost'] > 0.1:
@@ -231,10 +251,21 @@ class GameTreeAgent(CaptureAgent):
                 evalToGet = 2
                 actions = getLimitedAction(state, self.ghostIndex)
                 if random.random() < RANDOM_ACTION_PROB:
-                    action = random.choice(actions)
-                    nextState = state.generateSuccessor(self.ghostIndex, action)
-                    return self.terminal(nextState, self.index, layer-1, action)
+                    return self.expectedValue(state, layer)
             return self.maxValue(state, evalToGet, layer, saveAction)
+
+    def expectedValue(self, gameState, layer):
+        actions = getLimitedAction(gameState, self.ghostIndex)
+        v0 = 0
+        v1 = 0
+        v2 = 0
+        for a in actions:
+            successor = gameState.generateSuccessor(self.ghostIndex, a)
+            values = self.terminal(gameState, self.index, layer - 1, a)
+            v0 += values[0]
+            v1 += values[1]
+            v2 += values[2]
+        return v0 / len(actions), v1 / len(actions), v2 / len(actions)
 
     def maxValue(self, gameState, evalToGet, layer, saveAction):
         if evalToGet == 2:
@@ -289,17 +320,18 @@ class GameTreeAgent(CaptureAgent):
 
     def chooseAction(self, gameState):
         self.debugClear()
+        self.updateFoodGroup(gameState)
         self.toBroadcast = []
         pacX, pacY = gameState.getAgentPosition(self.index)
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         if pacX >= 32 - self.bornHardLevel * 2 \
                 and self.distancer.getDistance((pacX, pacY), ghostPos) < 7:
-            currentClusters = [f for f in self.clusteredFood if f in gameState.getFood().asList()]
+            candidateGroups = [group for group in self.foodGroup if group[2] and len(group[0]) > 1]
             if self.distancer.getDistance((pacX, pacY), self.ghostStart) \
                     < self.distancer.getDistance(ghostPos, self.ghostStart) \
-                    and len(currentClusters) > 0 \
-                    and min([self.distancer.getDistance(gameState.getAgentPosition(self.friendIndex), \
-                                                        f) for f in currentClusters]) < 5:
+                    and len(candidateGroups) > 0\
+                    and min([self.distancer.getDistance(gameState.getAgentPosition(self.friendIndex),\
+                    group[2]) for group in candidateGroups]) < 5:
 
                 lureDist = float('inf')
                 action = Directions.STOP
@@ -328,7 +360,7 @@ class GameTreeAgent(CaptureAgent):
             self.simpleEvalTimes += 1
             self.lastEvaluated = False
 
-        self.terminal(gameState, self.index, 2, saveAction=True)
+        self.terminal(gameState, self.index, 1, saveAction=True)
         if self.simpleEvalTimes < 10:
             self.lastEvaluated = True
             self.lastGameState = gameState
@@ -354,17 +386,44 @@ class GameTreeAgent(CaptureAgent):
         ########################################################################
         if group == 0: return 1
         foodSet, regionSize, exit = self.foodGroup[group]
+        if len(foodSet) == 0: return -1
         ghostDist = self.distancer.getDistance(gameState.getAgentPosition(
             gameState.getGhostTeamIndices()[0]), exit)
         if ghostDist < 1.5 * regionSize: return -1
         ghostFactor = min(ghostDist, 3 * regionSize, 20) / min(3 * regionSize, 20)
-        smooth = 18 #FIXME: tune it
+        smooth = 10 #FIXME: tune it
         worth = (len(foodSet) + smooth) / (regionSize * 2 + smooth)
-        return ghostFactor * smooth
+        return ghostFactor * worth
+
+    def updateFoodGroup(self, gameState):
+        allFoods = gameState.getFood().asList()
+        for group in self.foodGroup:
+            _set = group[0]
+            newSet = set()
+            for f in _set:
+                if f in allFoods:
+                    newSet.add(f)
+            group[0] = newSet
 
     def getNewPrediction(self, a):
         self.friendPrediction[0] = self.friendPrediction[1]
         self.friendPrediction[1] = a
+
+    def getSearchSuccessorsWithoutReverse(self,pos,state,prevAction):
+        successors=[]
+        actions=[Directions.NORTH,Directions.SOUTH,Directions.EAST,Directions.WEST]
+        if prevAction in actions:
+            actions.remove(Directions.REVERSE[prevAction])
+        for action in actions:
+            posX,posY=pos
+            if action==Directions.NORTH: posY+=1
+            if action==Directions.SOUTH: posY-=1
+            if action==Directions.EAST: posX+=1
+            if action==Directions.WEST: posX-=1
+            if posY>0 and posY<18 and posX>0 and posX<34:
+                if not state.hasWall(posX,posY):
+                    successors.append(((posX,posY),action,1))
+        return successors
 
 
 def mannhattanDistance(pos1, pos2):

@@ -383,7 +383,7 @@ class CaptureRules:
     return 3  # Three seconds results in instant forfeit
 
   def getMaxTimeWarnings(self, agentIndex):
-    return 2  # Third violation loses the game
+    return 1000  # Third violation loses the game #FIXME: get this back to 2
 
 class AgentRules:
   """
