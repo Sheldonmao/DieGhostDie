@@ -135,10 +135,10 @@ class MyAgent(CaptureAgent):
         self.weights = Counter()
         self.weights['numFood'] = 1
         self.weights['closestFoodReward'] = 1
-        self.weights['closestGhostPenalty'] = -500
-        self.weights['closestFriendPenalty'] = -30
-        self.weights['dangerGridPenalty']=-50
-        self.weights['subDangerGridPenalty']=-50
+        self.weights['closestGhostPenalty'] = -1
+        self.weights['closestFriendPenalty'] = -0.5
+        self.weights['dangerGridPenalty']=-1
+        self.weights['subDangerGridPenalty']=-1
         self.features = Counter()
 
         self.targetFood=(0,0)
@@ -371,7 +371,7 @@ class MyAgent(CaptureAgent):
         ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
         ghost=ghosts[0]
         ghostDist=util.manhattanDistance(pacman,ghost)
-        if self.dangerGrid[pacman[0]][pacman[1]]==True and ghostDist>=2:
+        if self.dangerGrid[pacman[0]][pacman[1]]==True and ghostDist>=3:
             index=(-1,-1)
             for i in range(len(self.dangerRegionList)):
                 for j in range(len(self.dangerRegionList[i])-1):
@@ -407,6 +407,8 @@ class MyAgent(CaptureAgent):
 
     def detectDanger(self,state):
         ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        friends = [state.getAgentPosition(pacman) for pacman in state.getPacmanTeamIndices() if pacman != self.index]
+        friend=friends[0]
         ghost=ghosts[0]
         pacman = state.getAgentPosition(self.index)
         distance=self.distancer.getDistance(pacman,ghost)
@@ -421,6 +423,9 @@ class MyAgent(CaptureAgent):
 
         foodGrid=state.getFood()
         if foodGrid[self.targetFood[0]][self.targetFood[1]]==False:
+            self.replanFlag=True
+        if self.distancer.getDistance(pacman,friend)<4:
+            self.closedTargets.append(self.targetFood)
             self.replanFlag=True
 
     #to be continued
@@ -438,10 +443,11 @@ class MyAgent(CaptureAgent):
         ghostPos=ghosts[0]
         foods = state.getFood().asList()
         numFood = len(foods)
-        friendTargets = [food for food in foods if self.distancer.getDistance(friendPos, food) < 7]
+        closestFriendFoodDist = min(self.distancer.getDistance(friendPos, food) for food in foods)
+        friendTargets = [food for food in foods if self.distancer.getDistance(friendPos, food) < closestFriendFoodDist+1]
         targetsNearTargets = []
         for f in friendTargets:
-            targetsNearTargets.extend([food for food in foods if self.distancer.getDistance(f, food) < 4])
+            targetsNearTargets.extend([food for food in foods if self.distancer.getDistance(f, food) < 3])
         friendTargets.extend(targetsNearTargets)
         friendTargets = set(friendTargets)
         if numFood - len(friendTargets) > 3:
@@ -471,6 +477,7 @@ class MyAgent(CaptureAgent):
         #             removelist.append(food)
         #     for food in removelist:
         #         foods.remove(food)
+
 
         self.targetFood=pacman
         if len(foods) > 0:
