@@ -209,6 +209,16 @@ class MyAgent(CaptureAgent):
         self.hesitate=0
         self.friendIsStupid = True
 
+        ###Atributes for which evaluation to use for friend###
+        self.friendIsStupid = False
+        self.simpleEvalTimes = 0
+        self.simpleRightTimes = 0
+        self.lastGameState = None
+        self.friendBehavior = Directions.STOP
+        self.friendPrediction = [Directions.STOP, Directions.STOP]
+        self.lastEvaluated = False
+        self.toBroadcast = []
+
     def regionGrowing(self,seeds,state):
         Region=[]
         RegionList=[]
@@ -635,3 +645,6 @@ def getLimitedAction(state, index):
         if rev in legalActions:
             legalActions.remove(rev)
     return legalActions
+
+def mannhattanDistance(pos1, pos2):
+    return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
