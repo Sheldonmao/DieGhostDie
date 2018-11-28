@@ -434,15 +434,10 @@ class MyAgent(CaptureAgent):
                         action = a
                 self.toBroadcast.append(action)
                 return action
-        ### Hard Code 2: born out ###
-        if pacX <= self.bornHardLevel * 2 - 1 and pacX % 2 == 1:
-            if (pacX + 1) / 2 % 2 == 1 and pacY != self.walls.height - 2:
-                return Directions.NORTH
-            elif (pacX + 1) / 2 % 2 == 0 and pacY != 1:
-                return Directions.SOUTH
         ### Plan Agent ###
-        if (self.followPlanFlag==True or self.forceFlag==True)\
-                and self.distancer.getDistance(friendPos, (pacX, pacY)) >= 5 and numFood > 5:
+        if pacX <= 2 * self.bornHardLevel - 1\
+                or ((self.followPlanFlag==True or self.forceFlag==True)\
+                and self.distancer.getDistance(friendPos, (pacX, pacY)) >= 5 and numFood > 5):
             if self.replanFlag==True and self.forceFlag==False:
                 self.plan=[]
                 self.replanFlag=False
