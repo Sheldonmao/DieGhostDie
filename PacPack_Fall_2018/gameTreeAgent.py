@@ -16,6 +16,7 @@ dir = [(-1, 0), (0, 1), (1, 0), (0, -1)]
 class GameTreeAgent(CaptureAgent):
     def registerInitialState(self, gameState):
         CaptureAgent.registerInitialState(self, gameState)
+        ### find index ###
         self.actionToTake = Directions.NORTH
         self.ghostIndex = gameState.getGhostTeamIndices()[0]
         self.friendIndex = -1
@@ -24,6 +25,7 @@ class GameTreeAgent(CaptureAgent):
                 self.friendIndex = i
                 break
         self.ghostStart = gameState.getAgentPosition(self.ghostIndex)
+        ### cache walls and born condition ###
         self.walls = gameState.getWalls()
         self.foodGrid = gameState.getFood()
         self.bornHardLevel = 0
@@ -46,8 +48,8 @@ class GameTreeAgent(CaptureAgent):
                         isWall = False
                         break
             if isWall: self.bornHardLevel += 1
+        ### group food ###
         self.dangerFood = list()
-
         for food in self.foodGrid.asList():
             if food[0] < 12: continue
             wallsAround = 0
@@ -85,12 +87,6 @@ class GameTreeAgent(CaptureAgent):
             for f in self.foodGroup[i][0]: problematicFood.add(f)
         safeGroup = set([food for food in gameState.getFood().asList() if food not in problematicFood])
         self.foodGroup[0] = [safeGroup, 0, None]
-        ###check###
-        for group in self.foodGroup:
-            if not group[2]:
-                for f in group[0]: self.debugDraw(f, [0,1,0])
-            else:
-                for f in group[0]: self.debugDraw(f, [1,1,0])
 
         ###Atributes for which evaluation to use for friend###
         self.friendIsStupid = False
@@ -185,12 +181,7 @@ class GameTreeAgent(CaptureAgent):
                     if food in foods:
                         self.debugDraw(food, [1,1,1])
                         foods.remove(food)
-        # nearestFriendTarget = min(friendTargets, key=lambda x : x[1])[0] if len(friendTargets) != 0 else []
-        # if -myFeats['numFood'] - len(nearestFriendTarget) > 3:
-        #     for f in nearestFriendTarget:
-        #         if f in foods:
-        #             foods.remove(f)
-                    #self.debugDraw(f, [1,1,1])
+        #FIXME: too many removed?
 
         # Remove really dangerous food
         if -myFeats['numFood'] > 10:
