@@ -434,6 +434,12 @@ class MyAgent(CaptureAgent):
                         action = a
                 self.toBroadcast.append(action)
                 return action
+        #### Hard Code 2: less than 5 foods ###
+        foods = gameState.getFood().asList()
+        if len(foods)<5:
+            self.plan=self.PlanFunctionL5(gameState)
+            self.forceFlag=True
+
         ### Plan Agent ###
         if pacX <= 2 * self.bornHardLevel - 1\
                 or ((self.followPlanFlag==True or self.forceFlag==True)\
@@ -550,6 +556,25 @@ class MyAgent(CaptureAgent):
     #to be continued
     #def lureModeAction(self,state):
     #    actions=state.getLegalActions(self.index)
+
+    def PlanFunctionL5(self, state):
+        foods = state.getFood().asList()
+        ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        friends = [state.getAgentPosition(pacman) for pacman in state.getPacmanTeamIndices() if pacman != self.index]
+        pacman = state.getAgentPosition(self.index)
+
+        #Remove friend's target
+        friendPos=friends[0]
+        ghostPos=ghosts[0]
+        numFood = len(foods)
+
+        self.targetFood=pacman
+        if len(foods) > 0:
+            closestFoodDist = min(self.distancer.getDistance(pacman, food) for food in foods)
+            closestFoods=[food for food in foods if self.distancer.getDistance(pacman,food)==closestFoodDist]
+            self.targetFood=random.choice(closestFoods)
+
+        return self.aStarSearch(state,pacman,self.targetFood,ghostPos,1)
 
     def PlanFunction(self, state):
         foods = state.getFood().asList()
