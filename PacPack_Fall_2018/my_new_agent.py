@@ -347,7 +347,7 @@ class MyAgent(CaptureAgent):
                 self.replanFlag=False
             if self.plan==[] or pacman==self.start:
                 self.plan=self.PlanFunction(gameState)
-
+                self.exploredCounter=Counter()
                 #draw plan
                 nextPos=pacman
                 b=random.random()
@@ -437,7 +437,7 @@ class MyAgent(CaptureAgent):
         pacman = state.getAgentPosition(self.index)
         distance=self.distancer.getDistance(pacman,ghost)
         self.followPlanFlag=False
-        if distance<3:
+        if distance<5:
             #if util.flipCoin(distance/5):
             #    self.followPlanFlag=True
             self.followPlanFlag=False
