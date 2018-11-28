@@ -148,7 +148,10 @@ class MyAgent(CaptureAgent):
         self.weights['closestFriendPenalty'] = -0.5
         self.weights['DeadEndGridPenalty']=-1
         self.weights['subDeadEndGridPenalty']=-1
+        self.weights['exploredPenalty']=-0.2
         self.features = Counter()
+
+        self.exploredCounter=Counter()
 
         self.targetFood=(0,0)
         self.walls = gameState.getWalls()
@@ -170,7 +173,7 @@ class MyAgent(CaptureAgent):
         for regionlist in self.dangerFoodRegionList:
             pos=regionlist[-1]
             self.foodExitGrid[pos[0]][pos[1]]=True
-            #self.debugDraw(pos,[0,0,1])
+            #self.(pos,[0,0,1])
 
         self.bornHardLevel = 0
         for i in range(1, 4):
@@ -213,14 +216,14 @@ class MyAgent(CaptureAgent):
         self.DeadEndGrid = Grid(self.foodGrid.width, self.foodGrid.height)
         for pos in self.DeadEndRegion:
             self.DeadEndGrid[pos[0]][pos[1]]=True
-            self.debugDraw(pos,[0,1,0])
+            #self.debugDraw(pos,[0,1,0])
 
         self.DangerSeeds=list(set(self.deadEnds).difference(set(self.dangerFood)))
         [_,self.DangerRegionList]=self.regionGrowing(self.DangerSeeds,gameState)
 
-        for i in self.DangerRegionList:
-            for j in i:
-                self.debugDraw(j,[1,0,0])
+        # for i in self.DangerRegionList:
+        #     for j in i:
+        #         self.debugDraw(j,[1,0,0])
 
         self.dangerExitList=[]
         self.subDeadEndRegion=[]
@@ -235,7 +238,7 @@ class MyAgent(CaptureAgent):
                     if self.walls[middle[0]][middle[1]]==True:
                         middle=(middle[0]+1,middle[1]+1)
                     if self.walls[middle[0]][middle[1]]==False:
-                        self.debugDraw(middle,[0,0,1])
+                        #self.debugDraw(middle,[0,0,1])
                         self.subDeadEndRegion.append(middle)
         self.closedTargets=[]
         self.hesitate=0
@@ -252,6 +255,7 @@ class MyAgent(CaptureAgent):
         self.toBroadcast = []
 
         ###redundant food groups, for gametree agent###
+        self.dangerRegion = []
         self.foodGroup = [None]
         for food in self.dangerFood:
             thisGroup = set()
@@ -353,6 +357,7 @@ class MyAgent(CaptureAgent):
         self.features['closestFriendPenalty']=closestFriendPenalty
         self.features['DeadEndGridPenalty']=DeadEndGrid
         self.features['subDeadEndGridPenalty']=subDeadEndGrid
+        self.features['exploredPenalty']=self.exploredCounter[pacman]
 
         return self.features
 
@@ -385,14 +390,14 @@ class MyAgent(CaptureAgent):
                     if pos==self.dangerFoodRegionList[i][0]:
                         index=i
             if index!=-1:
-                for temppos in self.dangerFoodRegionList[index]:
-                    self.debugDraw(temppos,[1,0,0])
+                # for temppos in self.dangerFoodRegionList[index]:
+                #     self.debugDraw(temppos,[1,0,0])
                 self.DangerRegionList.append(self.dangerFoodRegionList[index])
                 print('len of danger food region list',len(self.DangerRegionList))
                 self.dangerFoodRegionList.remove(self.dangerFoodRegionList[index])
                 if pos==pacman:
                     self.forceFlag=False
-                    self.debugDraw(pos,[1,1,1])
+                    #self.debugDraw(pos,[1,1,1])
                     #print("goal",pos,self.forceFlag)
 
     def chooseAction(self, gameState):
@@ -404,7 +409,8 @@ class MyAgent(CaptureAgent):
         self.detectDanger(gameState)
         computeFlag=False
         ###Variables for hard code###
-        pacX, pacY = gameState.getAgentPosition(self.index)
+        pacman = gameState.getAgentPosition(self.index)
+        pacX, pacY = pacman
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         friendPos = gameState.getAgentPosition(self.friendIndex)
         ### Hard Code 1 : lure the ghost back to home, when: ###
@@ -440,16 +446,15 @@ class MyAgent(CaptureAgent):
             if self.replanFlag==True and self.forceFlag==False:
                 self.plan=[]
                 self.replanFlag=False
-            pacman = gameState.getAgentPosition(self.index)
             if self.plan==[] or pacman==self.start:
                 self.plan=self.PlanFunction(gameState)
-
+                self.exploredCounter=Counter()
                 #draw plan
                 nextPos=pacman
                 b=random.random()
                 for action in reversed(self.plan):
                     nextPos=self.stepAction(nextPos,action)
-                    self.debugDraw(nextPos,[0.5,0.5,b])
+                    #self.debugDraw(nextPos,[0.5,0.5,b])
 
                 computeFlag=True
             if computeFlag==False:
@@ -463,17 +468,19 @@ class MyAgent(CaptureAgent):
                     b=random.random()
                     for action in reversed(self.plan):
                         nextPos=self.stepAction(nextPos,action)
-                        self.debugDraw(nextPos,[0.5,0.5,b])
+                        #self.debugDraw(nextPos,[0.5,0.5,b])
 
             if len(self.plan)!=0:
                 currentAction=self.plan.pop()
-                self.debugDraw(pacman,[0,0,0])
+                #self.debugDraw(pacman,[0,0,0])
         ####reflex
         else:
             #print("reflex")
             self.plan=[]
             return self.gameTreeAction(gameState)
+        print("PLAN!!!!!!!!!!")
         self.toBroadcast = self.plan
+        self.exploredCounter[pacman]+=1
         return currentAction
 
     def stepAction(self,pos,action):
@@ -534,8 +541,7 @@ class MyAgent(CaptureAgent):
         if distance<5:
             #if util.flipCoin(distance/5):
             #    self.followPlanFlag=True
-            if distance<=2:
-                self.followPlanFlag=False
+            self.followPlanFlag=False
         else:
             self.followPlanFlag=True
 
@@ -572,6 +578,7 @@ class MyAgent(CaptureAgent):
                         # self.debugDraw(food, [1,1,1])
                         foods.remove(food)
         # FIXME: too many removed?
+
 
         ghostTargets = [food for food in foods if self.distancer.getDistance(ghostPos, food) < 4]
         targetsNearTargets = []
@@ -766,7 +773,7 @@ class MyAgent(CaptureAgent):
             friendEval = friendFeats * friendWeight
 
         ###My Evaluation###
-        myWeight = {'numFood': 1, 'closestFood': 1, 'freeLevel': 0.1, 'foodDangerRegionReward': 0.1,
+        myWeight = {'numFood': 1, 'closestFood': 1, 'freeLevel': 0.1, 'foodDangerRegionReward': 0.1, 'exploredPenalty': 0.1,
                     'closestGhost': -0.5, 'closestFriend': -0.5, 'deadEndPenalty': -1, 'subDeadEndPenalty': -0.5}
         #FIXME: tune the closestGhost according to ghost's distance?
         myFeats = Counter()
@@ -794,7 +801,6 @@ class MyAgent(CaptureAgent):
                     dangerousSet.add(f)
             for f in dangerousSet:
                 foodWithEval.remove(f)
-                self.debugDraw(f[0], [1,0,0])
             if len(foodWithEval) == 0:
                 myFeats['closestFood'] = 30
             else:
@@ -833,6 +839,8 @@ class MyAgent(CaptureAgent):
         pacLookUp = self.lookUpList(self.dangerFoodRegionList, myPos)
         if pacLookUp[0]:
             myFeats['foodDangerRegionReward'] = len(self.dangerFoodRegionList[pacLookUp[1][0]])
+
+        myFeats['exploredPenalty'] = self.exploredCounter[myPos]
 
         myEval = myFeats * myWeight
 
@@ -897,9 +905,9 @@ class MyAgent(CaptureAgent):
                 elif v == value[evalToGet]:
                     maxValues.append((value, a))
             rtn = random.choice(maxValues)
-            if layer == 2:
-                self.debugDraw(gameState.generateSuccessor(self.ghostIndex, rtn[1]).getAgentPosition(self.ghostIndex),
-                               [0, 0, 1])
+            # if layer == 2:
+            #     self.debugDraw(gameState.generateSuccessor(self.ghostIndex, rtn[1]).getAgentPosition(self.ghostIndex),
+            #                     [0, 0, 1])
             if saveAction: self.decision = rtn[1]
             return rtn[0]
 
@@ -917,13 +925,51 @@ class MyAgent(CaptureAgent):
                 decision = a
                 rtn = value
         if layer == 2 and evalToGet == 1:
-            self.debugDraw(gameState.generateSuccessor(self.friendIndex, decision).getAgentPosition(self.friendIndex),
-                           [0, 1, 0])
+            #self.debugDraw(gameState.generateSuccessor(self.friendIndex, decision).getAgentPosition(self.friendIndex),[0, 1, 0])
             self.getNewPrediction(decision)
-        if layer == 2 and evalToGet == 0:
-            self.debugDraw(gameState.generateSuccessor(self.index, decision).getAgentPosition(self.index), [1, 0, 0])
+        # if layer == 2 and evalToGet == 0:
+        #     self.debugDraw(gameState.generateSuccessor(self.index, decision).getAgentPosition(self.index), [1, 0, 0])
         if saveAction: self.decision = decision
         return rtn
+
+    def updateFoodGroup(self, gameState):
+        allFoods = gameState.getFood().asList()
+        for group in self.foodGroup:
+            _set = group[0]
+            newSet = set()
+            for f in _set:
+                if f in allFoods:
+                    newSet.add(f)
+            group[0] = newSet
+
+    ###Helper Functions###
+
+    def foodEval(self, gameState, food):
+        for group in range(len(self.foodGroup)):
+            if food in self.foodGroup[group][0]:
+                return self.foodEvalGroup(gameState, group)
+
+    def foodEvalGroup(self, gameState, group):
+        ########################################################################
+        #    If food is too dangerous to eat (need to remove),                 #
+        #    return -1,                                                        #
+        #    else consider the distance(exit, ghost) and region_size / #food.  #
+        ########################################################################
+        if group == 0: return 1
+        foodSet, regionSize, exit = self.foodGroup[group]
+        if len(foodSet) == 0: return -1
+        ghostDist = self.distancer.getDistance(gameState.getAgentPosition(
+            gameState.getGhostTeamIndices()[0]), exit)
+        if ghostDist < 1.5 * regionSize: return -1
+        ghostFactor = min(ghostDist, 3 * regionSize, 20) / min(3 * regionSize, 20)
+        smooth = 10  # FIXME: tune it
+        worth = (len(foodSet) + smooth) / (regionSize * 2 + smooth)
+        return ghostFactor * worth
+
+    def getNewPrediction(self, a):
+        self.friendPrediction[0] = self.friendPrediction[1]
+        self.friendPrediction[1] = a
+
 
 
 
