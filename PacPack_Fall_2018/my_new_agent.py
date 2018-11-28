@@ -197,7 +197,8 @@ class MyAgent(CaptureAgent):
                     if self.walls[middle[0]][middle[1]]==False:
                         self.debugDraw(middle,[0,0,1])
                         self.subDangerRegion.append(middle)
-
+        for f in self.subDangerRegion:
+            self.debugDraw(f ,[1,1,1])
         #for food in self.dangerFood:
         #     self.debugDraw(food, [0,0,1])
         # for rigon in self.dangerFoodRegion:
@@ -280,7 +281,6 @@ class MyAgent(CaptureAgent):
                 if pacman==self.dangerFoodRegionList[i][-1]:
                     self.plan=self.PosList2ActionList(self.dangerFoodRegionList[i])
             if len(self.plan)!=0:
-                #print("pack plan",self.plan)
                 return True
         return self.forceFlag
 
@@ -551,6 +551,59 @@ class MyAgent(CaptureAgent):
     def heuristic(self,pos,des):
         return util.manhattanDistance(pos,des)
 
+    def gameTreeAction(self, gameState):
+        self.debugClear()
+        self.updateFoodGroup(gameState)
+        self.toBroadcast = []
+        pacX, pacY = gameState.getAgentPosition(self.index)
+        ghostPos = gameState.getAgentPosition(self.ghostIndex)
+        if pacX >= 32 - self.bornHardLevel * 2 \
+                and self.distancer.getDistance((pacX, pacY), ghostPos) < 7:
+            candidateGroups = [group for group in self.foodGroup if group[2] and len(group[0]) > 1]
+            if self.distancer.getDistance((pacX, pacY), self.ghostStart) \
+                    < self.distancer.getDistance(ghostPos, self.ghostStart) \
+                    and len(candidateGroups) > 0\
+                    and min([self.distancer.getDistance(gameState.getAgentPosition(self.friendIndex),\
+                    group[2]) for group in candidateGroups]) < 5:
+
+                lureDist = float('inf')
+                action = Directions.STOP
+                for a in getLimitedAction(gameState, self.index):
+                    successor = gameState.generateSuccessor(self.index, a)
+                    newDist = self.distancer.getDistance(successor.getAgentPosition(self.index), self.ghostStart)
+                    if newDist < lureDist:
+                        lureDist = newDist
+                        action = a
+                self.toBroadcast.append(action)
+                return action
+        if pacX <= self.bornHardLevel * 2 - 1 and pacX % 2 == 1:
+            if (pacX + 1) / 2 % 2 == 1 and pacY != self.walls.height - 2:
+                return Directions.NORTH
+            elif (pacX + 1) / 2 % 2 == 0 and pacY != 1:
+                return Directions.SOUTH
+
+        if self.lastEvaluated:
+            for a in self.lastGameState.getLegalActions(self.friendIndex):
+                successor = self.lastGameState.generateSuccessor(self.friendIndex, a)
+                if successor.getAgentPosition(self.friendIndex) == gameState.getAgentPosition(self.friendIndex):
+                    self.friendBehavior = a
+                    break
+            if self.friendBehavior == self.friendPrediction[0]:
+                self.simpleRightTimes += 1
+            self.simpleEvalTimes += 1
+            self.lastEvaluated = False
+
+        self.terminal(gameState, self.index, 1, saveAction=True)
+        if self.simpleEvalTimes < 10:
+            self.lastEvaluated = True
+            self.lastGameState = gameState
+        elif self.simpleEvalTimes == 10:
+            accuracy = float(self.simpleRightTimes / self.simpleEvalTimes)
+            if accuracy < 0.3:
+                self.friendIsStupid = False
+        self.toBroadcast.append(self.decision)
+        return self.decision
+
 def actionsWithoutStop(legalActions):
     """
     Filters actions by removing the STOP action
@@ -569,4 +622,16 @@ def actionsWithoutReverse(legalActions, gameState, agentIndex):
     reverse = Directions.REVERSE[gameState.getAgentState(agentIndex).configuration.direction]
     if len(legalActions) > 1 and reverse in legalActions:
         legalActions.remove(reverse)
+    return legalActions
+
+def getLimitedAction(state, index):
+    """
+    Actions without reverse and stop
+    """
+    legalActions = state.getLegalActions(index)
+    legalActions.remove('Stop')
+    if len(legalActions) > 1:
+        rev = Directions.REVERSE[state.getAgentState(index).configuration.direction]
+        if rev in legalActions:
+            legalActions.remove(rev)
     return legalActions
