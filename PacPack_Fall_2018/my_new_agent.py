@@ -242,7 +242,6 @@ class MyAgent(CaptureAgent):
                         self.subDeadEndRegion.append(middle)
         self.closedTargets=[]
         self.hesitate=0
-        self.friendIsStupid = True
 
         ###Atributes for which evaluation to use for friend###
         self.friendIsStupid = False
@@ -685,25 +684,25 @@ class MyAgent(CaptureAgent):
 
     ### Methods for gametree ###
     def gameTreeAction(self, gameState):
-        if self.lastEvaluated:
-            for a in self.lastGameState.getLegalActions(self.friendIndex):
-                successor = self.lastGameState.generateSuccessor(self.friendIndex, a)
-                if successor.getAgentPosition(self.friendIndex) == gameState.getAgentPosition(self.friendIndex):
-                    self.friendBehavior = a
-                    break
-            if self.friendBehavior == self.friendPrediction[0]:
-                self.simpleRightTimes += 1
-            self.simpleEvalTimes += 1
-            self.lastEvaluated = False
+        # if self.lastEvaluated:
+        #     for a in self.lastGameState.getLegalActions(self.friendIndex):
+        #         successor = self.lastGameState.generateSuccessor(self.friendIndex, a)
+        #         if successor.getAgentPosition(self.friendIndex) == gameState.getAgentPosition(self.friendIndex):
+        #             self.friendBehavior = a
+        #             break
+        #     if self.friendBehavior == self.friendPrediction[0]:
+        #         self.simpleRightTimes += 1
+        #     self.simpleEvalTimes += 1
+        #     self.lastEvaluated = False
 
         self.terminal(gameState, self.index, 1, saveAction=True)
-        if self.simpleEvalTimes < 10:
-            self.lastEvaluated = True
-            self.lastGameState = gameState
-        elif self.simpleEvalTimes == 10:
-            accuracy = float(self.simpleRightTimes / self.simpleEvalTimes)
-            if accuracy < 0.3:
-                self.friendIsStupid = False
+        # if self.simpleEvalTimes < 10:
+        #     self.lastEvaluated = True
+        #     self.lastGameState = gameState
+        # elif self.simpleEvalTimes == 10:
+        #     accuracy = float(self.simpleRightTimes / self.simpleEvalTimes)
+        #     if accuracy < 0.3:
+        #         self.friendIsStupid = False
         self.toBroadcast.append(self.decision)
         return self.decision
 

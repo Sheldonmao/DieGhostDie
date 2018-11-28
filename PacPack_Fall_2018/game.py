@@ -719,6 +719,8 @@ class Game:
                     self.state = self.state.generateSuccessor( agentIndex, action )
 
                 except Exception as data:
+                    print(agentIndex, action)
+                    print(self.state)
                     self.mute(agentIndex)
                     self._agentCrash(agentIndex)
                     self.unmute()
