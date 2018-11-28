@@ -140,7 +140,10 @@ class MyAgent(CaptureAgent):
         self.weights['closestFriendPenalty'] = -0.5
         self.weights['DeadEndGridPenalty']=-1
         self.weights['subDeadEndGridPenalty']=-1
+        self.weights['exploredPenalty']=-0.2
         self.features = Counter()
+
+        self.exploredCounter=Counter()
 
         self.targetFood=(0,0)
         self.walls = gameState.getWalls()
@@ -285,6 +288,7 @@ class MyAgent(CaptureAgent):
         self.features['closestFriendPenalty']=closestFriendPenalty
         self.features['DeadEndGridPenalty']=DeadEndGrid
         self.features['subDeadEndGridPenalty']=subDeadEndGrid
+        self.features['exploredPenalty']=self.exploredCounter[pacman]
 
         return self.features
 
@@ -328,6 +332,7 @@ class MyAgent(CaptureAgent):
                     #print("goal",pos,self.forceFlag)
 
     def chooseAction(self, gameState):
+        pacman = gameState.getAgentPosition(self.index)
         currentAction = self.actionHelper(gameState)
         self.updateEatenPack(gameState)
         self.forceFlag=self.packPlan(gameState)
@@ -340,10 +345,9 @@ class MyAgent(CaptureAgent):
             if self.replanFlag==True and self.forceFlag==False:
                 self.plan=[]
                 self.replanFlag=False
-            pacman = gameState.getAgentPosition(self.index)
             if self.plan==[] or pacman==self.start:
                 self.plan=self.PlanFunction(gameState)
-
+                self.exploredCounter=Counter()
                 #draw plan
                 nextPos=pacman
                 b=random.random()
@@ -370,10 +374,12 @@ class MyAgent(CaptureAgent):
                 self.debugDraw(pacman,[0,0,0])
         ####reflex
         else:
-            #print("reflex")
+            print("reflex")
             self.plan=[]
             currentAction = self.actionHelper(gameState)
         #print(currentAction)
+
+        self.exploredCounter[pacman]+=1
         return currentAction
 
     def stepAction(self,pos,action):
@@ -434,8 +440,7 @@ class MyAgent(CaptureAgent):
         if distance<5:
             #if util.flipCoin(distance/5):
             #    self.followPlanFlag=True
-            if distance<=2:
-                self.followPlanFlag=False
+            self.followPlanFlag=False
         else:
             self.followPlanFlag=True
 
@@ -462,7 +467,7 @@ class MyAgent(CaptureAgent):
         foods = state.getFood().asList()
         numFood = len(foods)
         closestFriendFoodDist = min(self.distancer.getDistance(friendPos, food) for food in foods)
-        closestFriendFoodDist=min(closestFriendFoodDist,6)
+        closestFriendFoodDist=min(closestFriendFoodDist,10)
         friendTargets = [food for food in foods if self.distancer.getDistance(friendPos, food) < closestFriendFoodDist+1]
         targetsNearTargets = []
         for f in friendTargets:
