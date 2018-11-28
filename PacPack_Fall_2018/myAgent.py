@@ -17,9 +17,10 @@
 from captureAgents import CaptureAgent
 import random, time, util
 from game import Directions, Actions
-from util import Counter
+from util import Counter,PriorityQueue,Queue
 import game
 from util import nearestPoint
+#import numpy as np
 
 
 #########
@@ -117,9 +118,6 @@ class BaseAgent(CaptureAgent):
         value = sum(feature * weight for feature, weight in zip(features, self.weights))
         return value
 
-class MyAgent(BaseAgent):
-    def toString(self):
-        return "MyAgent"
 
 class ReinforcementAgent(BaseAgent):
 
@@ -129,11 +127,23 @@ class ReinforcementAgent(BaseAgent):
         self.walls = gameState.getWalls()
 
         self.readWeights()
+        self.prefixed_weight = Counter()
+        self.prefixed_weight['bias'] = 0
+        self.prefixed_weight['reverse'] = -1000
+        self.prefixed_weight['numFood'] = 60
+        self.prefixed_weight['closestFood'] = 5
+        self.prefixed_weight['closestFriend'] = -0.5
+        self.prefixed_weight['closestGhost'] = -1
+        self.prefixed_weight['pacInTunnel'] = -0.07
+        self.prefixed_weight['5*5space'] = 1
+        self.prefixed_weight['2_step_foods']=1
+        self.prefixed_weight["eatFoodFeature"]=5
+
         self.lastNeighbor = []
         self.lastFeature = Counter()
 
-        self.alpha = 0.001
-        self.gamma = 0.99
+        self.alpha = 0.01
+        self.gamma = 0.95
         self.reverse_prob=0.5
 
         self.bornHardLevel = 0
@@ -148,16 +158,17 @@ class ReinforcementAgent(BaseAgent):
             self.bornHardLevel += 1
 
     def getFeatures(self, gameState, action):
+        new_state = gameState.generateSuccessor(self.index, action)
         feats = Counter()
-        feats['bias'] = 1
+        feats['bias'] = 0
         if action == Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]:
             feats['reverse'] = 1
         else: feats['reverse'] = 0
 
-        foods = gameState.getFood().asList()
-        ghosts = [gameState.getAgentPosition(ghost) for ghost in gameState.getGhostTeamIndices()]
-        friends = [gameState.getAgentPosition(pacman) for pacman in gameState.getPacmanTeamIndices() if pacman != self.index]
-        pacman = gameState.getAgentPosition(self.index)
+        foods = new_state.getFood().asList()
+        ghosts = [new_state.getAgentPosition(ghost) for ghost in new_state.getGhostTeamIndices()]
+        friends = [new_state.getAgentPosition(pacman) for pacman in new_state.getPacmanTeamIndices() if pacman != self.index]
+        pacman = new_state.getAgentPosition(self.index)
         closestFood = min(self.distancer.getDistance(pacman, food) for food in foods) + 2.0 \
             if len(foods) > 0 else 1.0
         closestGhost = min(self.distancer.getDistance(pacman, ghost) for ghost in ghosts) + 1.0 \
@@ -173,20 +184,54 @@ class ReinforcementAgent(BaseAgent):
         feats['closestFriend'] = closestFriendPenalty
         feats['closestGhost'] = closestGhostPenalty
 
-        pacActions = gameState.getLegalActions(gameState.getGhostTeamIndices()[0])
+        pacActions = new_state.getLegalActions(new_state.getGhostTeamIndices()[0])
         pacActions = actionsWithoutStop(pacActions)
         feats['pacInTunnel'] = 0
         if len(pacActions) == 2:
             feats['pacInTunnel'] = 1
 
         futureMoves = 0
-        for a in gameState.getLegalActions(self.index):
-            s = gameState.generateSuccessor(self.index, a)
-            futureMoves += 1 + len(s.getLegalActions(self.index))
-        feats['5*5space'] = futureMoves / 30
+        neighbour_foods=0
+        freelist=[]
+        for a in new_state.getLegalActions(self.index):
+            s = new_state.generateSuccessor(self.index, a)
+            new_actions=s.getLegalActions(self.index)
+            for i in range(len(new_actions)):
+                new_s=s.generateSuccessor(self.index, new_actions[i])
+                new_pos=new_s.getAgentPosition(self.index)
+                if  new_pos not in freelist:
+                    if s.hasFood(new_pos[0],new_pos[1]):
+                        neighbour_foods+=1
+                    freelist.append(new_pos)
+            #futureMoves += 1 + len(s.getLegalActions(self.index))
+        #print(freelist,len(freelist))
+        #print("neighbour_foods",neighbour_foods)
+        feats['5*5space'] = len(freelist)/ 13
+        feats["2_step_foods"]=neighbour_foods
+
+        posX,posY=new_state.getAgentPosition(self.index)
+        if gameState.hasFood(posX,posY):
+            feats["eatFoodFeature"]=1
+        #pacX, pacY = new_state.getAgentPosition(self.index)
+        #freespace=0
+        #walls=new_state.getWalls()
+        #xlb=max(pacX-2,0)
+        #xub=min(pacX+2,walls.width-1)
+        #for i in range(xlb,xub+1):
+        #    jrange=5-2*abs(pacX-i)
+        #    jlb=max(pacY-jrange,0)
+        #    jub=min(pacY+jrange,walls.height-1)
+        #    #print("walls:",walls.width,walls.height)
+        #    for j in range(jlb,jub+1):
+        #        if new_state.hasWall(i,j)==False:
+        #            freespace+=1
+        #print("freespace",freespace)
+        #feats['5*5space'] = freespace / 13
+
+
         return feats
 
-    def getQValue(self, state, action):
+    def getQValue(self, state, action,fixed=0):
         """
           Should return Q(state,action) = w * featureVector
           where * is the dotProduct operator
@@ -194,7 +239,10 @@ class ReinforcementAgent(BaseAgent):
         "*** YOUR CODE HERE ***"
         #print(self.weights)
         #print(self.featExtractor.getFeatures(state,action))
-        return self.weight*self.getFeatures(state,action)
+        if fixed==0:
+            return self.weight*self.getFeatures(state,action)
+        else:
+            return self.prefixed_weight*self.getFeatures(state,action)
 
     def computeValueFromQValues(self, state):
         """
@@ -224,13 +272,18 @@ class ReinforcementAgent(BaseAgent):
         best_action=None
         if len(actions)!=0:
             #print("actions",actions,"  size:",len(actions))
-            Qvalues = [self.getQValue(state,action) for action in actions]
+
+            Qvalues = [self.getQValue(state,action,1) for action in actions]
             best_Qvalue=max(Qvalues)
             #print("bestQvalue",best_Qvalue)
             best_indices=[index for index in range(len(Qvalues)) if Qvalues[index]==best_Qvalue]
-            #print("best_indicies",best_indices,"  size:",len(best_indices))
+            #print("actions")
+            #for i in range(len(actions)):
+            #    print(actions[i],"Q value:",Qvalues[i])
+            #print("best_actions",best_indices,"  size:",len(best_indices))
             chosen_index=random.choice(best_indices)
             best_action=actions[chosen_index]
+            #print("best action:",best_action)
         return best_action
 
     def chooseAction(self, state):
@@ -262,6 +315,7 @@ class ReinforcementAgent(BaseAgent):
                 action=random.choice(legalActions)
             else:
                 action=self.computeActionFromQValues(state)
+        #print("action choosen",action)
         self.update(state)
         self.lastFeature=self.getFeatures(state,action)
         self.saveWeights(state)
@@ -275,7 +329,9 @@ class ReinforcementAgent(BaseAgent):
         reward=self.getReward(state)
         if len(self.lastFeature.keys()) != 0:
             #print('weight:',self.weight," lastfeature",self.lastFeature)
+            #print(" lastfeature",self.lastFeature)
             difference=reward+self.gamma*self.computeValueFromQValues(state)-self.weight*self.lastFeature
+            #print("reward:",reward)
             #print("difference:",difference)
             for feature in self.lastFeature:
                 self.weight[feature]+=self.alpha*difference*self.lastFeature[feature]
@@ -299,7 +355,6 @@ class ReinforcementAgent(BaseAgent):
             presentFoodNum = len(gameState.getFood().asList())
             foodDecreaseReward = 10 * (lastFoodNum - presentFoodNum)
 
-        # 储存我的四邻域食物情况
         self.lastNeighbor = []
         food = gameState.getFood()
         legalNeighbors = Actions.getLegalNeighbors(pacman, self.walls)
@@ -366,3 +421,179 @@ def actionsWithoutReverse(legalActions, gameState, agentIndex):
     if len(legalActions) > 1 and reverse in legalActions:
         legalActions.remove(reverse)
     return legalActions
+
+
+class MyAgent(BaseAgent):
+    def registerInitialState(self, gameState):
+        BaseAgent.registerInitialState(self, gameState)
+        self.plan=[]
+        self.followPlanFlag=True
+        self.weights = Counter()
+        self.weights['numFood'] = 1
+        self.weights['closestFoodReward'] = 1
+        self.weights['closestGhostPenalty'] = -10
+        self.weights['closestFriendPenalty'] = -1
+        self.features = Counter()
+
+    def getFeatures(self, state):
+        foods = state.getFood().asList()
+        ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        friends = [state.getAgentPosition(pacman) for pacman in state.getPacmanTeamIndices() if pacman != self.index]
+
+        pacman = state.getAgentPosition(self.index)
+
+        closestFood = min(self.distancer.getDistance(pacman, food) for food in foods) + 2.0 \
+            if len(foods) > 0 else 1.0
+        closestGhost = min(self.distancer.getDistance(pacman, ghost) for ghost in ghosts) + 1.0 \
+            if len(ghosts) > 0 else 1.0
+        closestFriend = min(self.distancer.getDistance(pacman, friend) for friend in friends) + 1.0 \
+            if len(friends) > 0 else 1.0
+
+        closestFoodReward = 1.0 / closestFood
+        closestGhostPenalty = 1.0 / (closestGhost ** 2) if closestGhost < 20 else 0
+        closestFriendPenalty = 1.0 / (closestFriend ** 2) if closestFriend < 5 else 0
+
+        numFood = len(foods)
+
+        #features=Counter()
+        self.features['numFood']=-numFood
+        self.features['closestFoodReward']=closestFoodReward
+        self.features['closestGhostPenalty']=closestGhostPenalty
+        self.features['closestFriendPenalty']=closestFriendPenalty
+
+        return self.features
+
+    def evaluationFunction(self,state):
+        self.getFeatures(state)
+        return self.features*self.weights
+
+    def chooseAction(self, gameState):
+        currentAction = self.actionHelper(gameState)
+        self.detectDanger(gameState)
+        #print(self.followPlanFlag)
+        #plan
+        if self.followPlanFlag==True:
+            pacman = gameState.getAgentPosition(self.index)
+            if self.plan==[] or pacman==(1,2) or pacman==(1,1):
+                self.plan=self.PlanFunction(gameState)
+            currentAction=self.plan.pop()
+        ##reflex
+        else:
+            self.plan=[]
+            currentAction = self.actionHelper(gameState)
+        #print(currentAction)
+        return currentAction
+
+    def actionHelper(self, state):
+        #actions = self.getLimitedActions(state, self.index)
+        actions = state.getLegalActions(self.index)
+
+        val = float('-inf')
+        best = None
+        for action in actions:
+            new_state = state.generateSuccessor(self.index, action)
+            new_state_val = self.evaluationFunction(new_state)
+
+            if new_state_val > val:
+                val = new_state_val
+                best = action
+
+        return best
+
+    def detectDanger(self,state):
+        ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        ghost=ghosts[0]
+        pacman = state.getAgentPosition(self.index)
+        distance=self.distancer.getDistance(pacman,ghost)
+        self.followPlanFlag=False
+        if distance<8:
+            if util.flipCoin(distance/8):
+                self.followPlanFlag=True
+        else:
+            self.followPlanFlag=True
+
+    def replanDetector(self,state):
+        ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        ghost=ghosts[0]
+        pacman = state.getAgentPosition(self.index)
+        distance=self.distancer.getDistance(pacman,ghost)
+        self.followPlanFlag=False
+        if distance<8:
+            if util.flipCoin(distance/8):
+                self.followPlanFlag=True
+        else:
+            self.followPlanFlag=True
+
+    #to be continued
+    def lureModeAction(self,state):
+        actions=state.getLegalActions(self.index)
+
+    def PlanFunction(self, state):
+        foods = state.getFood().asList()
+        ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
+        friends = [state.getAgentPosition(pacman) for pacman in state.getPacmanTeamIndices() if pacman != self.index]
+        pacman = state.getAgentPosition(self.index)
+
+        #Remove friend's target
+        friendPos=friends[0]
+        foods = state.getFood().asList()
+        numFood = len(foods)
+        friendTargets = [food for food in foods if self.distancer.getDistance(friendPos, food) < 7]
+        targetsNearTargets = []
+        for f in friendTargets:
+            targetsNearTargets.extend([food for food in foods if self.distancer.getDistance(f, food) < 4])
+        friendTargets.extend(targetsNearTargets)
+        friendTargets = set(friendTargets)
+        if numFood - len(friendTargets) > 3:
+            for f in friendTargets:
+                if f in foods: foods.remove(f)
+
+
+        closestFood=pacman
+        if len(foods) > 0:
+            closestFoodDist = min(self.distancer.getDistance(pacman, food) for food in foods)
+            closestFoods=[food for food in foods if self.distancer.getDistance(pacman,food)==closestFoodDist]
+            closestFood=random.choice(closestFoods)
+        ##A* Search
+        return self.aStarSearch(state,pacman,closestFood)
+
+    def aStarSearch(self,state, pos,des):
+        """Search the node that has the lowest combined cost and heuristic first."""
+        "*** YOUR CODE HERE ***"
+        fringe=util.PriorityQueue()
+        fringe.push([pos,[],0],0)
+        closed_set=[]
+        #print('pos',pos,' des',des)
+        while not fringe.isEmpty():
+            #print('now the fringe have',len(fringe.heap))
+            #print('now the closed set is',closed_set)
+            nodePos,nodeActionList,nodeCost=fringe.pop()
+            #print("poped pos",nodePos)
+            if nodePos==des:
+                return nodeActionList
+            if not nodePos in closed_set:
+                closed_set.append(nodePos)
+                for (successorPos, action, stepCost) in getSearchSuccessors(nodePos,state):
+                    nextPos=successorPos
+                    nextActionList=nodeActionList.copy()
+                    nextActionList.insert(0,action)
+                    #nextActionList.append(action)
+                    nextCost=nodeCost+stepCost
+                    fringe.push([nextPos,nextActionList,nextCost],nextCost+heuristic(nextPos,des))
+        else: return []
+
+
+def getSearchSuccessors(pos,state):
+    successors=[]
+    for action in [Directions.NORTH,Directions.SOUTH,Directions.EAST,Directions.WEST]:
+        posX,posY=pos
+        if action==Directions.NORTH: posY+=1
+        if action==Directions.SOUTH: posY-=1
+        if action==Directions.EAST: posX+=1
+        if action==Directions.WEST: posX-=1
+        if posY>0 and posY<18 and posX>0 and posX<34:
+            if not state.hasWall(posX,posY):
+                successors.append(((posX,posY),action,1))
+    return successors
+def heuristic(pos,des):
+    return util.manhattanDistance(pos,des)
