@@ -969,9 +969,9 @@ class MyAgent(CaptureAgent):
         ghostDist = self.distancer.getDistance(gameState.getAgentPosition(
             gameState.getGhostTeamIndices()[0]), exit)
         if ghostDist < 1.5 * regionSize: return -1
-        ghostFactor = min(ghostDist, 3 * regionSize, 20) / min(3 * regionSize, 20)
-        smooth = 10  # FIXME: tune it
-        worth = (len(foodSet) + smooth) / (regionSize * 2 + smooth)
+        ghostFactor = float(min(ghostDist, 3.0 * regionSize, 20.0) / min(3.0 * regionSize, 20.0))
+        smooth = 10.0  # FIXME: tune it
+        worth = float((len(foodSet) + smooth)) / float((regionSize * 2 + smooth))
         return ghostFactor * worth
 
     def getNewPrediction(self, a):
