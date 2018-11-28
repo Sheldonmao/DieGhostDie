@@ -413,6 +413,7 @@ class MyAgent(CaptureAgent):
         pacX, pacY = pacman
         ghostPos = gameState.getAgentPosition(self.ghostIndex)
         friendPos = gameState.getAgentPosition(self.friendIndex)
+        numFood = len(gameState.getFood().asList())
         ### Hard Code 1 : lure the ghost back to home, when: ###
         ### near ghost's home and ghost near me and friend near food ###
         if pacX >= 32 - self.bornHardLevel * 2 \
@@ -442,7 +443,7 @@ class MyAgent(CaptureAgent):
                 return Directions.SOUTH
         ### Plan Agent ###
         if (self.followPlanFlag==True or self.forceFlag==True)\
-                and self.distancer.getDistance(friendPos, (pacX, pacY)) >= 5:
+                and self.distancer.getDistance(friendPos, (pacX, pacY)) >= 5 and numFood > 5:
             if self.replanFlag==True and self.forceFlag==False:
                 self.plan=[]
                 self.replanFlag=False
@@ -773,7 +774,14 @@ class MyAgent(CaptureAgent):
             friendEval = friendFeats * friendWeight
 
         ###My Evaluation###
-        myWeight = {'numFood': 1, 'closestFood': 1, 'freeLevel': 0.1, 'foodDangerRegionReward': 0.1, 'exploredPenalty': 0.1,
+        if len(gameState.getFood().asList()) < 6:
+            myWeight = {'numFood': 1, 'closestFood': 1}
+            myFeats = Counter()
+            foods = gameState.getFood().asList()
+            myFeats['numFood'] = len(foods)
+            myFeats['closestFood'] = 3.0 / (min([self.distancer.getDistance(myPos, f) for f in foods]) + 2.0)
+        else:
+            myWeight = {'numFood': 1, 'closestFood': 1, 'freeLevel': 0.1, 'foodDangerRegionReward': 0.1, 'exploredPenalty': -0.1,
                     'closestGhost': -0.5, 'closestFriend': -0.5, 'deadEndPenalty': -1, 'subDeadEndPenalty': -0.5}
         #FIXME: tune the closestGhost according to ghost's distance?
         myFeats = Counter()
