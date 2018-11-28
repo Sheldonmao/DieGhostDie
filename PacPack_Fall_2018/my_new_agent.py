@@ -135,10 +135,11 @@ class MyAgent(CaptureAgent):
         self.weights = Counter()
         self.weights['numFood'] = 1
         self.weights['closestFoodReward'] = 1
+        self.weights['foodDangerRegionReward']=1
         self.weights['closestGhostPenalty'] = -1
         self.weights['closestFriendPenalty'] = -0.5
-        self.weights['dangerGridPenalty']=-1
-        self.weights['subDangerGridPenalty']=-1
+        self.weights['DeadEndGridPenalty']=-1
+        self.weights['subDeadEndGridPenalty']=-1
         self.features = Counter()
 
         self.targetFood=(0,0)
@@ -157,7 +158,7 @@ class MyAgent(CaptureAgent):
             self.foodWithEnv.append((food, wallsAround))
         self.dangerFood = set(self.dangerFood)
 
-        [self.dangerFoodRegion,self.dangerFoodRegionList]=self.regionGrowing(self.dangerFood,gameState)
+        [_,self.dangerFoodRegionList]=self.regionGrowing(self.dangerFood,gameState)
 
         self.foodExitGrid=Grid(self.foodGrid.width, self.foodGrid.height)
         for regionlist in self.dangerFoodRegionList:
@@ -181,15 +182,22 @@ class MyAgent(CaptureAgent):
                     if wallsAround >= 3:
                         self.deadEnds.append((i,j))
                         #self.debugDraw((i,j),[1,0,0])
-        [self.dangerRegion,self.dangerRegionList]=self.regionGrowing(self.deadEnds,gameState)
-        self.dangerGrid = Grid(self.foodGrid.width, self.foodGrid.height)
-        for pos in self.dangerRegion:
-            self.dangerGrid[pos[0]][pos[1]]=True
+        [self.DeadEndRegion,self.DeadEndRegionList]=self.regionGrowing(self.deadEnds,gameState)
+        self.DeadEndGrid = Grid(self.foodGrid.width, self.foodGrid.height)
+        for pos in self.DeadEndRegion:
+            self.DeadEndGrid[pos[0]][pos[1]]=True
             self.debugDraw(pos,[0,1,0])
 
+        self.DangerSeeds=list(set(self.deadEnds).difference(set(self.dangerFood)))
+        [_,self.DangerRegionList]=self.regionGrowing(self.DangerSeeds,gameState)
+
+        for i in self.DangerRegionList:
+            for j in i:
+                self.debugDraw(j,[1,0,0])
+
         self.dangerExitList=[]
-        self.subDangerRegion=[]
-        for posrange in self.dangerRegionList:
+        self.subDeadEndRegion=[]
+        for posrange in self.DeadEndRegionList:
             self.dangerExitList.append(posrange[-1])
         for i in range(len(self.dangerExitList)-1):
             for j in range(i+1,len(self.dangerExitList)):
@@ -201,17 +209,18 @@ class MyAgent(CaptureAgent):
                         middle=(middle[0]+1,middle[1]+1)
                     if self.walls[middle[0]][middle[1]]==False:
                         self.debugDraw(middle,[0,0,1])
-                        self.subDangerRegion.append(middle)
-
-        #for food in self.dangerFood:
-        #     self.debugDraw(food, [0,0,1])
-        # for rigon in self.dangerFoodRegion:
-        #     self.debugDraw(rigon, [0,1,0])
-        # for region in self.dangerFoodRegionList[0]:
-        #     self.debugDraw(region,[1,0,0])
+                        self.subDeadEndRegion.append(middle)
         self.closedTargets=[]
         self.hesitate=0
         self.friendIsStupid = True
+
+    ##LOL: list of lists
+    def lookUpList(self,LOL,Myelement):
+        for i in range(len(LOL)):
+            for j in range(len(LOL[i])):
+                if Myelement==LOL[i][j]:
+                    return [True,[i,j]]
+        return [False,[]]
 
     def regionGrowing(self,seeds,state):
         Region=[]
@@ -254,21 +263,28 @@ class MyAgent(CaptureAgent):
 
         numFood = len(foods)
 
-        dangergrid=0
-        if self.dangerGrid[pacman[0]][pacman[1]]==True:
-            dangergrid=1
+        DeadEndGrid=0
+        #if self.DeadEndGrid[pacman[0]][pacman[1]]==True:
+        if pacman in self.DeadEndRegion:
+            DeadEndGrid=1
 
-        subDangerGrid=0
-        if pacman in self.subDangerRegion:
-            subDangerGrid=1
+        subDeadEndGrid=0
+        if pacman in self.subDeadEndRegion:
+            subDeadEndGrid=1
+
+        foodDangerRegionReward=0
+        pacLookUp=self.lookUpList(self.dangerFoodRegionList,pacman)
+        if pacLookUp[0]:
+            foodDangerRegionReward=len(self.dangerFoodRegionList[pacLookUp[1][0]])
 
         #features=Counter()
         self.features['numFood']=-numFood
         self.features['closestFoodReward']=closestFoodReward
+        self.features['foodDangerRegionReward']=foodDangerRegionReward
         self.features['closestGhostPenalty']=closestGhostPenalty
         self.features['closestFriendPenalty']=closestFriendPenalty
-        self.features['dangerGridPenalty']=dangergrid
-        self.features['subDangerGridPenalty']=subDangerGrid
+        self.features['DeadEndGridPenalty']=DeadEndGrid
+        self.features['subDeadEndGridPenalty']=subDeadEndGrid
 
         return self.features
 
@@ -303,11 +319,13 @@ class MyAgent(CaptureAgent):
             if index!=-1:
                 for temppos in self.dangerFoodRegionList[index]:
                     self.debugDraw(temppos,[1,0,0])
+                self.DangerRegionList.append(self.dangerFoodRegionList[index])
+                print('len of danger food region list',len(self.DangerRegionList))
                 self.dangerFoodRegionList.remove(self.dangerFoodRegionList[index])
                 if pos==pacman:
                     self.forceFlag=False
                     self.debugDraw(pos,[1,1,1])
-                    print("goal",pos,self.forceFlag)
+                    #print("goal",pos,self.forceFlag)
 
     def chooseAction(self, gameState):
         currentAction = self.actionHelper(gameState)
@@ -352,7 +370,7 @@ class MyAgent(CaptureAgent):
                 self.debugDraw(pacman,[0,0,0])
         ####reflex
         else:
-            print("reflex")
+            #print("reflex")
             self.plan=[]
             currentAction = self.actionHelper(gameState)
         #print(currentAction)
@@ -371,14 +389,14 @@ class MyAgent(CaptureAgent):
         ghosts = [state.getAgentPosition(ghost) for ghost in state.getGhostTeamIndices()]
         ghost=ghosts[0]
         ghostDist=util.manhattanDistance(pacman,ghost)
-        if self.dangerGrid[pacman[0]][pacman[1]]==True and ghostDist>=3:
+        if self.DeadEndGrid[pacman[0]][pacman[1]]==True and ghostDist>=3:
             index=(-1,-1)
-            for i in range(len(self.dangerRegionList)):
-                for j in range(len(self.dangerRegionList[i])-1):
-                    if pacman==self.dangerRegionList[i][j]:
+            for i in range(len(self.DeadEndRegionList)):
+                for j in range(len(self.DeadEndRegionList[i])-1):
+                    if pacman==self.DeadEndRegionList[i][j]:
                         index=(i,j+1)
             if index!=(-1,-1):
-                return self.chooseNeighbourActioin(pacman,self.dangerRegionList[index[0]][index[1]])
+                return self.chooseNeighbourActioin(pacman,self.DeadEndRegionList[index[0]][index[1]])
         actions = actionsWithoutStop(state.getLegalActions(self.index))
         val = float('-inf')
         best = None
@@ -444,6 +462,7 @@ class MyAgent(CaptureAgent):
         foods = state.getFood().asList()
         numFood = len(foods)
         closestFriendFoodDist = min(self.distancer.getDistance(friendPos, food) for food in foods)
+        closestFriendFoodDist=min(closestFriendFoodDist,6)
         friendTargets = [food for food in foods if self.distancer.getDistance(friendPos, food) < closestFriendFoodDist+1]
         targetsNearTargets = []
         for f in friendTargets:
@@ -464,7 +483,7 @@ class MyAgent(CaptureAgent):
             for f in ghostTargets:
                 if f in foods: foods.remove(f)
 
-        print("len of closed targets",len(self.closedTargets))
+        #print("len of closed targets",len(self.closedTargets))
         for target in self.closedTargets:
             if target in foods:
                 foods.remove(target)
